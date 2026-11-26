@@ -1,0 +1,26 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<a class="link" href="{{ url_for('admin.banners_lista') }}">← Banners</a>
+<h1>{{ 'Editar banner' if b else 'Novo banner' }}</h1>
+<form class="f box" method="post" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>1. Produto em destaque <small class="mute">(opcional)</small></h2>
+<label class="wide">Produto<select name="product_id"><option value="">— nenhum (banner só com imagem ou texto) —</option>
+{% for p in produtos %}<option value="{{ p.id }}" {{ 'selected' if b and b.product_id == p.id }}>{{ p.name }}{% if p.codigo %} ({{ p.codigo }}){% endif %}</option>{% endfor %}</select></label>
+<p class="wide mute">Com um produto escolhido, o banner usa o nome, a foto e o link dele sozinho. O preço aparece só para quem entrou na conta.</p>
+<h2>2. Imagem <small class="mute">(opcional)</small></h2>
+<label>Enviar do computador (PNG, JPG ou WEBP, até 10 MB: a imagem é comprimida sozinha)<input type="file" name="imagem" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+<label>Ou link da imagem (https://...)<input name="imagem_url" value="{{ b.imagem_url if b else '' }}" maxlength="500"></label>
+{% if b and b.imagem %}<div class="wide"><img class="previa-banner" src="{{ url_for('shop.banner_imagem', bid=b.id, v=b.versao) }}" alt="Imagem atual"><label><span><input type="checkbox" name="remover_imagem"> Remover a imagem atual</span></label></div>{% endif %}
+<p class="wide mute">Imagem sem título e sem produto vira um banner só de imagem, ocupando toda a largura (tamanho ideal: 1200 × 320 px). Com título ou produto, a imagem aparece ao lado do texto.</p>
+<h2>3. Textos e clique</h2>
+<label>Título<input name="titulo" value="{{ b.titulo if b else '' }}" maxlength="120" placeholder="Vazio = nome do produto"></label>
+<label>Subtítulo<input name="subtitulo" value="{{ b.subtitulo if b else '' }}" maxlength="200" placeholder="Ex.: Caixa com 25 discos em promoção"></label>
+<label>Texto do botão<input name="texto_botao" value="{{ b.texto_botao if b else '' }}" maxlength="40" placeholder="Vazio = Ver produto"></label>
+<label>Ao clicar, ir para<input name="link" value="{{ b.link if b else '' }}" maxlength="500" placeholder="Vazio = o produto. Ex.: /?cat=3"></label>
+<h2>4. Aparência</h2>
+<label>Cor de fundo<select name="cor">{% for k, n in cores.items() %}<option value="{{ k }}" {{ 'selected' if (b.cor if b else 'azul') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Ordem (menor aparece primeiro)<input name="ordem" type="number" value="{{ b.ordem if b else sugestao_ordem }}"></label>
+<label class="wide"><span><input type="checkbox" name="ativo" {{ 'checked' if not b or b.ativo }}> Ativo (aparece na loja)</span></label>
+<div><button class="btn">Salvar banner</button> <a class="btn ghost" href="{{ url_for('admin.banners_lista') }}">Cancelar</a></div>
+</form>
+{% endblock %}

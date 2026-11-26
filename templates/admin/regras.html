@@ -1,0 +1,15 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Regras de venda</h1>
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Pedido mínimo (R$, 0 = sem mínimo)<input name="pedido_minimo" inputmode="decimal" value="{{ minimo|duas_casas }}" required></label>
+<h2>Dados da empresa (aparecem na Política de Privacidade e nos Termos)</h2>
+{% if not e.completo %}<p class="wide msg">Preencha razão social, CNPJ e e-mail de privacidade: a LGPD exige identificar quem é responsável pelos dados e como o cliente fala com vocês.</p>{% endif %}
+{% for k, rotulo in campos.items() %}<label>{{ rotulo }}<input name="{{ k }}" value="{{ e[k] }}" maxlength="200" {{ 'type=email' if k == 'empresa_email_privacidade' }}></label>{% endfor %}
+<p class="wide mute">Veja como ficou: <a class="link" href="{{ url_for('shop.privacidade') }}" target="_blank" rel="noopener">Política de Privacidade</a> · <a class="link" href="{{ url_for('shop.termos') }}" target="_blank" rel="noopener">Termos de Uso</a>. O texto é um modelo: vale passar por um advogado ou pelo seu contador.</p>
+<div><button class="btn">Salvar</button></div></form>
+<div class="box"><h3>Onde ficam as outras regras</h3>
+<p><b>Quantidade mínima, múltiplo e preço por quantidade:</b> em Produtos → Editar, em cada produto.</p>
+<p><b>Desconto e prazos do boleto faturado:</b> em Clientes, para cada empresa aprovada.</p>
+<p><b>Orçamentos:</b> em Pedidos → Orçamentos. Ao aprovar, você ajusta os preços, escolhe o pagamento e o estoque é baixado.</p></div>
+{% endblock %}

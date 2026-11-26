@@ -1,0 +1,28 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.notas_compra') }}">← Notas de compra</a></p>
+<h1>NF-e {{ nr.numero or '' }} · {{ nr.nome_emitente or nr.cnpj_emitente }}</h1>
+<section class="box">
+<p>Valor: <b>{{ nr.valor|brl }}</b>{% if nr.emitida_em %} · emitida em {{ nr.emitida_em|hora_br }}{% endif %} · CNPJ {{ nr.cnpj_emitente }}</p>
+<p class="mute pequeno">Chave: <code>{{ nr.chave }}</code> · {{ 'buscada na SEFAZ' if nr.origem == 'sefaz' else 'XML enviado pelo painel' }}{% if nr.manifestacao == 'ciencia' %} · ciência registrada{% endif %}</p>
+{% if nr.situacao != 'autorizada' %}<p class="msg">Esta nota está <b>{{ nr.situacao }}</b> na SEFAZ: não lance em Compras.</p>{% endif %}
+<div class="acts-row">
+{% if nr.tipo == 'completa' %}<a class="btn ghost" href="{{ url_for('admin.nota_compra_danfe', rid=nr.id) }}" target="_blank" rel="noopener">DANFE</a><a class="btn ghost" href="{{ url_for('admin.nota_compra_xml', rid=nr.id) }}">XML</a>
+{% else %}<form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn" name="acao" value="ciencia">Dar ciência e baixar o XML</button></form>{% endif %}
+{% if nr.compra_id %}<a class="btn" href="{{ url_for('admin.compra', cid=nr.compra_id) }}">Ver a compra #{{ nr.compra_id }}</a>{% endif %}</div>
+{% if nr.tipo != 'completa' %}<p class="mute pequeno">A ciência da operação só informa à SEFAZ que a loja sabe da nota (não é aceite). Ela libera o download do XML com os itens.</p>{% endif %}
+</section>
+
+{% if itens and not nr.compra_id and nr.situacao == 'autorizada' %}
+<form method="post" class="box" style="overflow-x:auto"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="lancar">
+<h2>Lançar em Compras</h2>
+<p class="mute pequeno">Escolha o produto da loja de cada item (os que o sistema reconheceu já vêm marcados: pelo código do fornecedor, código de barras ou código da loja). <b>Unidades por item</b>: se o fornecedor vende a caixa com 10 e a loja vende a unidade, ponha 10. O sistema lembra a escolha para a próxima nota deste fornecedor. Item sem produto fica de fora.</p>
+<table class="tabela-campos"><tr><th>Item da nota</th><th class="num">Qtd</th><th class="num">Valor</th><th>Produto da loja</th><th>Unidades por item</th></tr>
+{% for item, pid, fator in itens %}<tr><td>{{ item.descricao }}<br><small class="mute">cód. {{ item.codigo }}{% if item.ean %} · EAN {{ item.ean }}{% endif %} · NCM {{ item.ncm }}</small></td>
+<td class="num">{{ item.quantidade|num }} {{ item.unidade }}</td><td class="num">{{ item.valor|brl }}</td>
+<td><select name="produto_{{ loop.index0 }}" aria-label="Produto da loja"><option value="">— deixar de fora —</option>{% for p in produtos %}<option value="{{ p.id }}" {{ 'selected' if p.id == pid }}>{{ p.name }}{% if p.codigo %} ({{ p.codigo }}){% endif %}</option>{% endfor %}</select></td>
+<td><input name="fator_{{ loop.index0 }}" type="number" min="1" value="{{ fator }}" style="max-width:90px" aria-label="Unidades por item"></td></tr>{% endfor %}</table>
+{% if d.duplicatas %}<p class="mute pequeno">Pagamento: {{ d.duplicatas|length }} duplicata(s) · as contas a pagar entram ao receber a mercadoria.</p>{% endif %}
+<div class="acts-row"><button class="btn">Lançar em Compras</button></div></form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Cupons de desconto</h1>
+<div class="box"><p>O cliente digita o código no <b>carrinho</b>. O desconto sai do valor dos <b>produtos</b> (o frete não entra) e aparece no pedido, no Pix e nos e-mails.
+O pedido mínimo da loja vale sobre os produtos antes do cupom.</p>
+<p class="mute">Cada pedido conta como um uso; pedidos cancelados não contam. Um cupom já usado não pode ser excluído (ele é desativado, para manter o histórico).</p></div>
+
+{% for c in cupons %}
+{% set vencido = c.validade and c.validade < hoje %}
+<form class="f box regra" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="cid" value="{{ c.id }}">
+<h2>{{ c.codigo }} <small class="mute">{{ descricao(c) }} · {{ usos.get(c.codigo, 0) }}{% if c.limite_usos %} de {{ c.limite_usos }}{% endif %} uso(s){% if descontos.get(c.codigo) %} · {{ descontos[c.codigo]|brl }} descontados{% endif %}</small>
+{% if not c.ativo %} <span class="tag off">desativado</span>{% elif vencido %} <span class="tag off">vencido</span>{% elif c.limite_usos and usos.get(c.codigo, 0) >= c.limite_usos %} <span class="tag off">esgotado</span>{% else %} <span class="tag">valendo</span>{% endif %}</h2>
+<label>Código<input name="codigo" value="{{ c.codigo }}" maxlength="30" required autocapitalize="characters"></label>
+<label>Tipo<select name="tipo"><option value="percentual" {{ 'selected' if c.tipo == 'percentual' }}>% sobre os produtos</option><option value="valor" {{ 'selected' if c.tipo == 'valor' }}>Valor fixo (R$)</option></select></label>
+<label>Desconto<input name="valor" inputmode="decimal" value="{{ c.valor|num }}" required></label>
+<label>Compra mínima em produtos (R$)<input name="minimo" inputmode="decimal" value="{{ c.minimo|duas_casas }}"></label>
+<label>Válido até (opcional)<input name="validade" type="date" value="{{ c.validade.isoformat() if c.validade else '' }}"></label>
+<label>Limite de usos no total (opcional)<input name="limite_usos" type="number" min="1" value="{{ c.limite_usos or '' }}"></label>
+<label><span><input type="checkbox" name="um_por_cliente" {{ 'checked' if c.um_por_cliente }}> Só uma vez por cliente</span></label>
+<label><span><input type="checkbox" name="ativo" {{ 'checked' if c.ativo }}> Ativo</span></label>
+<div class="acts wide"><button class="btn">Salvar</button>
+<button class="btn ghost" formaction="{{ url_for('admin.cupom_excluir', cid=c.id) }}" formnovalidate data-confirmar="Excluir o cupom {{ c.codigo }}?">Excluir</button></div></form>
+{% else %}<div class="box"><p class="mute">Nenhum cupom ainda. Exemplo: <b>BEMVINDO10</b>, 10% para a primeira compra, uma vez por cliente.</p></div>{% endfor %}
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Novo cupom</h2>
+<label>Código<input name="codigo" maxlength="30" required placeholder="BEMVINDO10" autocapitalize="characters"></label>
+<label>Tipo<select name="tipo"><option value="percentual">% sobre os produtos</option><option value="valor">Valor fixo (R$)</option></select></label>
+<label>Desconto<input name="valor" inputmode="decimal" required placeholder="10"></label>
+<label>Compra mínima em produtos (R$)<input name="minimo" inputmode="decimal" value="0,00"></label>
+<label>Válido até (opcional)<input name="validade" type="date"></label>
+<label>Limite de usos no total (opcional)<input name="limite_usos" type="number" min="1" placeholder="sem limite"></label>
+<label><span><input type="checkbox" name="um_por_cliente" checked> Só uma vez por cliente</span></label>
+<div><button class="btn">Criar cupom</button></div></form>
+{% endblock %}

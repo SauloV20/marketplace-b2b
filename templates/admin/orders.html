@@ -1,0 +1,41 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Pedidos</h1>
+{% set nomes = {'orcamento': 'Orçamentos', 'aprovacao': 'Aprovação do cliente', 'pendente': 'Aguardando pagamento', 'pago': 'Pagos', 'cancelado': 'Cancelados'} %}
+{% set sem_status = {} %}{% for k, v in usados.items() if k != 'status' %}{% set _ = sem_status.update({k: v}) %}{% endfor %}
+<form class="busca-pedidos box" method="get" role="search">
+{% if filtro %}<input type="hidden" name="status" value="{{ filtro }}">{% endif %}
+<label class="largo">Buscar<input name="q" value="{{ q }}" placeholder="Nº do pedido, cliente, empresa, CPF/CNPJ, e-mail ou rastreio"></label>
+<label>De<input type="date" name="de" value="{{ de }}"></label>
+<label>Até<input type="date" name="ate" value="{{ ate }}"></label>
+<button class="btn">Buscar</button>{% if q or de or ate %} <a class="link" href="{{ url_for('admin.orders', status=filtro) if filtro else url_for('admin.orders') }}">Limpar busca</a>{% endif %}</form>
+<div class="chips" style="margin-bottom:12px"><a class="chip {{ 'on' if not filtro }}" href="{{ url_for('admin.orders', **sem_status) }}">Todos</a>
+{% for k, n in nomes.items() %}<a class="chip {{ 'on' if filtro == k }}" href="{{ url_for('admin.orders', status=k, **sem_status) }}">{{ n }}</a>{% endfor %}</div>
+<p class="mute resumo-lista">{{ total }} pedido(s){% if total %} · {{ soma|brl }} sem os cancelados{% endif %}{% if paginas > 1 %} · página {{ pagina }} de {{ paginas }}{% endif %}</p>
+<form id="excluir-pedidos" method="post" action="{{ url_for('admin.orders_excluir') }}" class="acoes-lote"
+ data-excluir-marcados>
+<input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="filtro" value="{{ filtro }}"><input type="hidden" name="voltar" value="{{ request.full_path }}">
+<button class="btn ghost" type="button" data-imprimir-marcados="{{ url_for('admin.orders_imprimir') }}">Imprimir romaneio e etiqueta</button>
+{% if acesso_total %}<button class="btn ghost perigo">Excluir selecionados</button>{% endif %}</form>
+<div class="box" style="overflow-x:auto"><table>
+<tr><th><input type="checkbox" aria-label="Marcar todos" data-marcar-todos></th><th>#</th><th>Cliente</th><th>Contato</th><th>Pagamento</th><th>Total</th><th>Status</th><th></th></tr>
+{% for o in orders %}<tr>
+<td><input type="checkbox" name="oid" value="{{ o.id }}" form="excluir-pedidos" aria-label="Marcar pedido {{ o.id }}"></td>
+<td><a class="link" href="{{ url_for('admin.pedido', oid=o.id) }}"><b>#{{ o.id }}</b></a></td><td>{% if o.razao_social %}<b>{{ o.razao_social }}</b><br><small>CNPJ {{ fmt_doc(o.documento) }} · {{ o.customer_name }}</small>{% else %}{{ o.customer_name }}{% if o.documento %}<br><small>CPF {{ fmt_doc(o.documento) }}</small>{% endif %}{% endif %}<br><small>{{ o.created_at|hora_br }}</small></td>
+<td>{{ o.customer_phone }}<br><small>{{ o.customer_email }}</small></td>
+<td>{{ metodos.get(o.payment_method, o.payment_method or '—') }}{% if o.prazo %}<br><small>{{ o.prazo }} dias</small>{% endif %}</td><td>{{ o.total|brl }}{% if o.frete_combinar %}<br><small class="mute">frete a combinar</small>{% elif o.frete %}<br><small class="mute">frete {{ o.frete|brl }}</small>{% endif %}{% if o.desconto %}<br><small class="mute">cupom {{ o.cupom }}: -{{ o.desconto|brl }}</small>{% endif %}</td>
+<td><span class="tag {{ 'off' if o.status == 'cancelado' }}">{{ {'orcamento': 'orçamento', 'aprovacao': 'aprovação do cliente'}.get(o.status, o.status) }}</span>{% if o.comprador_nome %}<br><small class="mute">feito por {{ o.comprador_nome }}</small>{% endif %}{% if o.envio %} <span class="tag">{{ o.envio }}</span>{% if o.arquivos %} <small class="mute" title="Documentos anexados">📎{{ o.arquivos|length }}</small>{% endif %}{% elif o.arquivos %} <small class="mute" title="Documentos anexados">📎{{ o.arquivos|length }}</small>{% endif %}
+{% if o.pagador_confere is true %}<br><small class="mute">pagador confere</small>{% elif o.pagador_confere is false %}<br><span class="tag off" title="Pago por {{ o.pagador_nome }} {{ o.pagador_documento }}">pagador diferente</span><br><small>{{ o.pagador_nome }} {{ o.pagador_documento }}</small>{% endif %}
+{% if o.status == 'pendente' and o.pix_txid %}<form method="post" action="{{ url_for('admin.order_pix', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link">Verificar Pix</button></form>{% endif %}{% if o.status == 'pendente' and o.payment_method == 'cartao' %}<form method="post" action="{{ url_for('admin.order_cartao', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">{% if o.cartao_aberto %}<button class="link" name="acao" value="consultar">Verificar cartão</button>{% else %}<button class="link" name="acao" value="gerar">{{ 'Novo link do cartão' if o.cartao_id else 'Gerar link do cartão' }}</button>{% endif %}</form>{% endif %}</td>
+<td>{% if o.status == 'orcamento' %}<a class="btn" href="{{ url_for('admin.orcamento', oid=o.id) }}">Revisar orçamento</a>
+{% else %}<form method="post" action="{{ url_for('admin.order_status', oid=o.id) }}" style="display:flex;gap:6px"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<select name="status" aria-label="Status do pedido {{ o.id }}">{% for s in ['pendente','pago','cancelado'] %}<option {{ 'selected' if s == o.status }}>{{ s }}</option>{% endfor %}</select>
+<button class="btn ghost">Salvar</button></form>
+<span class="links-pedido">{% if o.status == 'pendente' and not o.envio and not o.pix_txid and not o.cartao_aberto %}<a class="btn ghost" href="{{ url_for('admin.pedido', oid=o.id) }}#editar">Editar</a> {% endif %}<a class="link" href="{{ url_for('admin.pedido', oid=o.id) }}">{{ 'Envio e documentos' if o.status != 'cancelado' else 'Detalhes' }}</a></span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8">{{ 'Nenhum pedido encontrado com essa busca.' if q or de or ate else 'Nenhum pedido aqui.' }}</td></tr>{% endfor %}
+</table></div>
+{% if paginas > 1 %}<nav class="paginas" aria-label="Páginas">
+{% if pagina > 1 %}<a class="btn ghost" href="{{ url_for('admin.orders', pagina=pagina - 1, **usados) }}">← Anteriores</a>{% endif %}
+<span class="mute">Página {{ pagina }} de {{ paginas }}</span>
+{% if pagina < paginas %}<a class="btn ghost" href="{{ url_for('admin.orders', pagina=pagina + 1, **usados) }}">Mais antigos →</a>{% endif %}</nav>{% endif %}
+{% endblock %}

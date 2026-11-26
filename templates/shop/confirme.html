@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Conta · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<section class="login box auth"><h2>Confirme seu e-mail</h2>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<p>Enviamos um link de confirmação{% if email %} para <b>{{ email }}</b>{% endif %}. Abra o e-mail e clique no link para ativar sua conta. O link vale por 48 horas.</p>
+<p class="cat">Não chegou? Confira o spam ou peça outro:</p>
+<form method="post" action="{{ url_for('account.reenviar') }}" class="stack"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>E-mail<input type="email" name="email" value="{{ email }}" required maxlength="120" autocomplete="email"></label>
+<button class="btn ghost">Reenviar e-mail de confirmação</button></form>
+<p class="cat"><a class="link" href="{{ url_for('account.entrar') }}">Voltar para entrar</a></p></section>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Avaliações de produto</h1>
+<div class="box"><p>Quem comprou o produto (pedido pago ou enviado) avalia com nota de 1 a 5 e um comentário, na página do produto. Nada aparece na loja antes de você <b>publicar</b>. A resposta do Marketplace B2B aparece embaixo da avaliação.</p>
+<p class="mute">A média e o total das avaliações publicadas vão para a página do produto e para o Google, que pode mostrar as estrelas na busca. Recuse só o que for ofensivo, propaganda ou fora do assunto: esconder críticas verdadeiras tira a confiança nas avaliações.</p></div>
+<p class="acts-row">{% for k, v in [('pendente', 'Aguardando'), ('aprovada', 'Publicadas'), ('recusada', 'Não publicadas'), ('todas', 'Todas')] %}<a class="{{ 'btn' if filtro == k else 'btn ghost' }}" href="{{ url_for('admin.avaliacoes_lista', status=k) }}">{{ v }}</a>{% endfor %}</p>
+{% for a in lista %}<form class="f box" method="post" action="{{ url_for('admin.avaliacoes_lista', status=filtro) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="aid" value="{{ a.id }}">
+<h2><span class="estrelas" aria-label="Nota {{ a.nota }} de 5">{{ '★' * a.nota }}{{ '☆' * (5 - a.nota) }}</span> <a class="link" href="{{ link_produto(a.product) }}#avaliacoes" target="_blank" rel="noopener">{{ a.product.name }}</a> <small class="mute">{{ a.user.name }} ({{ a.nome }}) · {{ a.user.email }} · {{ a.criado_em|hora_br }}</small> <span class="tag {{ '' if a.status == 'aprovada' else 'off' }}">{{ status[a.status] }}</span></h2>
+<div class="wide">{% for par in a.comentario.split('\n') if par.strip() %}<p>{{ par }}</p>{% else %}<p class="mute">Sem comentário.</p>{% endfor %}</div>
+<label class="wide">Resposta pública do Marketplace B2B (opcional)<textarea name="resposta" rows="2" maxlength="500">{{ a.resposta }}</textarea></label>
+<div class="acts-row wide" style="margin:0">{% if a.status != 'aprovada' %}<button class="btn" name="acao" value="aprovar">Publicar</button>{% endif %}{% if a.status != 'recusada' %}<button class="btn ghost" name="acao" value="recusar">Não publicar</button>{% endif %}<button class="btn ghost" name="acao" value="responder">Salvar resposta</button><button class="btn ghost perigo" name="acao" value="excluir" data-confirmar="Excluir esta avaliação? O cliente poderá avaliar de novo.">Excluir</button></div></form>
+{% else %}<div class="box"><p class="mute">Nada por aqui.</p></div>{% endfor %}
+{% endblock %}

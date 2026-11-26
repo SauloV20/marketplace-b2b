@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Privacidade · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow">
+<h1>Privacidade</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<section class="box stack"><h3>Seus dados</h3>
+<p class="mute">Baixe um arquivo com tudo o que o Marketplace B2B guarda sobre você: dados da conta e histórico de pedidos.</p>
+<a class="btn ghost" href="{{ url_for('account.baixar_dados') }}">Baixar meus dados (JSON)</a>
+<p class="mute">Termos aceitos em {{ cliente.termos_aceitos_em.strftime('%d/%m/%Y') if cliente.termos_aceitos_em else '—' }}. Leia a <a class="link" href="{{ url_for('shop.privacidade') }}">Política de Privacidade</a> e os <a class="link" href="{{ url_for('shop.termos') }}">Termos de Uso</a>.</p></section>
+<form class="box stack" method="post" action="{{ url_for('account.lembretes') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h3>Lembretes por e-mail</h3>
+<label><span><input type="checkbox" name="lembrete_carrinho" {{ 'checked' if cliente.lembrete_carrinho }}> Me avise por e-mail quando eu deixar produtos no carrinho</span></label>
+<button class="btn ghost">Salvar</button></form>
+<form class="box stack perigo" method="post" action="{{ url_for('account.excluir_conta') }}" data-confirmar="Excluir sua conta definitivamente? Isso não pode ser desfeito."><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h3>Excluir minha conta</h3>
+<p class="mute">Sua conta e seus dados de cadastro serão apagados e você sairá do site. Os pedidos já feitos ficam guardados pelo prazo exigido pela lei fiscal, sem ligação com a conta. {% if abertos %}<b>Você tem {{ abertos }} pedido(s) ou orçamento(s) em aberto: cancele ou aguarde a conclusão antes de excluir.</b>{% endif %}</p>
+<label>Digite sua senha para confirmar<input type="password" name="senha" required autocomplete="current-password"></label>
+<button class="btn perigo" {{ 'disabled' if abertos }}>Excluir minha conta</button></form>
+</main>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Meus dados · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow">
+<h1>Meus dados</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<form class="box stack" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><h3>Dados da conta</h3>
+{% if not cliente.documento %}<p class="msg">Informe seu CPF ou CNPJ: ele é necessário para finalizar compras (vai na nota fiscal).</p>
+{% set f = request.form %}{% include "shop/_campos_empresa.html" %}
+{% elif cliente.tipo == 'pj' %}
+<p><b>CNPJ {{ fmt_doc(cliente.documento) }}</b> · <span class="tag {{ '' if cliente.empresa_aprovada else 'off' }}">{{ 'Empresa aprovada' if cliente.empresa_aprovada else 'Cadastro em análise' }}</span></p>
+{% if cliente.empresa_aprovada %}<p class="mute">{{ cliente.razao_social }}{% if cliente.inscricao_estadual %} · IE {{ cliente.inscricao_estadual }}{% endif %}. Para alterar, fale com o Marketplace B2B.</p>
+{% if cliente.desconto %}<p class="mute">Desconto: {{ cliente.desconto|num }}% sobre a tabela</p>{% endif %}
+{% if cliente.prazos %}<p class="mute">Prazos de boleto faturado: {{ cliente.prazos }} dias</p>{% endif %}
+{% else %}<label>Razão social<input name="razao_social" value="{{ cliente.razao_social or '' }}" maxlength="160"></label>
+<label>Inscrição estadual (opcional)<input name="inscricao_estadual" value="{{ cliente.inscricao_estadual or '' }}" maxlength="30"></label>{% endif %}
+{% else %}<p><b>CPF {{ fmt_doc(cliente.documento) }}</b></p>{% endif %}
+<label>{{ 'Responsável' if cliente.tipo == 'pj' else 'Nome' }}<input name="nome" value="{{ cliente.name }}" required maxlength="120" autocomplete="name"></label>
+<label>E-mail<input value="{{ cliente.email }}" disabled></label>
+{% if sms %}<p>Celular: <b>{{ fmt_cel(cliente.phone) if cliente.phone else 'não informado' }}</b>{% if cliente.telefone_verificado %} <span class="tag">confirmado</span>{% endif %} · <a class="link" href="{{ url_for('account.celular') }}">Trocar celular</a></p>
+{% else %}<label>Telefone<input name="telefone" value="{{ cliente.phone or '' }}" maxlength="30" autocomplete="tel" inputmode="tel"></label>{% endif %}
+<label>Endereço de entrega<input name="endereco" value="{{ cliente.address or '' }}" maxlength="300" autocomplete="street-address"></label>
+<button class="btn">Salvar dados</button></form>
+<form class="box stack" method="post" action="{{ url_for('account.senha') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><h3>Alterar senha</h3>
+<label>Senha atual<input type="password" name="atual" required autocomplete="current-password"></label>
+{% include "shop/_senha_nova.html" %}
+<button class="btn">Alterar senha</button></form>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='cadastro.js') }}"></script>{% endblock %}

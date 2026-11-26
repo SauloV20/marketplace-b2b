@@ -1,0 +1,21 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Vendas</h1>
+{% if lembrar_backup %}<div class="msg">Faz mais de 7 dias (ou nunca) que você baixou um backup. <a class="link" href="{{ url_for('admin.backup_pagina') }}">Baixar backup agora</a></div>{% endif %}
+<div class="kpis">
+<div class="box kpi">Faturamento<b>{{ kpis.revenue|brl }}</b></div>
+<div class="box kpi">Pedidos pagos<b>{{ kpis.orders }}</b></div>
+<div class="box kpi">Aguardando pagamento<b>{{ kpis.pending }}</b></div>
+<div class="box kpi">Produtos ativos<b>{{ kpis.products }}</b></div>
+<a class="box kpi" href="{{ url_for('admin.orders', status='orcamento') }}">Orçamentos para responder<b>{{ kpis.orcamentos }}</b></a>
+<a class="box kpi" href="{{ url_for('admin.clientes', f='analise') }}">Empresas para aprovar<b>{{ kpis.empresas }}</b></a></div>
+{% if estoque_baixo %}<div class="box"><h3>Estoque baixo ({{ estoque_baixo|length }})</h3>
+<div style="overflow-x:auto"><table><tr><th>Produto</th><th>Estoque</th><th>Alerta em</th><th></th></tr>
+{% for p in estoque_baixo %}<tr><td>{{ p.name }}{% if p.codigo %} <small class="mute">{{ p.codigo }}</small>{% endif %}</td><td>{% if p.stock == 0 %}<span class="tag off">esgotado</span>{% else %}{{ p.stock }}{% endif %}</td><td>{{ p.estoque_alerta }}</td><td><a class="link" href="{{ url_for('admin.edit_product', pid=p.id) }}">Repor</a></td></tr>{% endfor %}
+</table></div></div>{% endif %}
+<div class="charts">
+<div class="box"><h3>Faturamento nos últimos 30 dias</h3><canvas id="daily" data-rotulos="{{ days|tojson|forceescape }}" data-valores="{{ totals|tojson|forceescape }}"></canvas></div>
+<div class="box"><h3>Mais vendidos</h3><canvas id="top" data-rotulos="{{ top_names|tojson|forceescape }}" data-valores="{{ top_qty|tojson|forceescape }}"></canvas></div></div>
+<script src="{{ url_for('static', filename='vendor/chart-4.4.1.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='admin-graficos.js') }}"></script>
+{% endblock %}

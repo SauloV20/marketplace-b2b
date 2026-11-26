@@ -1,0 +1,27 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<a class="link" href="{{ url_for('admin.products') }}">← Produtos</a>
+<h1>Planilhas</h1>
+<div class="box"><h3>Exportar</h3>
+<p class="mute">Baixe em Excel. A planilha de produtos já vem no formato certo para editar e importar de volta.</p>
+<p style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn ghost" href="{{ url_for('admin.exportar_produtos') }}">Baixar produtos (.xlsx)</a>
+<a class="btn ghost" href="{{ url_for('admin.exportar_pedidos') }}">Baixar pedidos (.xlsx)</a></p></div>
+<form class="f box" method="post" action="{{ url_for('admin.importar_planilha') }}" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Importar produtos</h2>
+<label class="wide">Arquivo Excel (.xlsx) ou CSV<input type="file" name="arquivo" accept=".xlsx,.csv" required></label>
+<label class="wide"><span><input type="checkbox" name="desativar_ausentes"> Desativar na loja os produtos que não estiverem na planilha (eles não são apagados)</span></label>
+<div><button class="btn">Ver prévia</button></div>
+<p class="wide mute">Nada é gravado agora: primeiro aparece a prévia com o que vai mudar e os erros, linha por linha.</p></form>
+<div class="box"><h3>Como montar a planilha</h3>
+<p>A primeira linha tem os nomes das colunas: <b>{{ colunas|join(', ') }}</b>. A ordem não importa e dá para usar só algumas.</p>
+<ul class="lista">
+<li><b>codigo</b>: o código (SKU) do produto. É por ele que o sistema sabe qual produto atualizar; sem código, usa o nome exato.</li>
+<li><b>nome, categoria, preco, estoque</b>: obrigatórios para produto novo. Categoria que não existir é criada.</li>
+<li><b>preco</b> e <b>acrescimo_fracionado</b>: números como 18,90 ou 18.90 (pode ter R$ ou %).</li>
+<li><b>qtd_minima</b> e <b>multiplo</b>: números inteiros (padrão 1). <b>fracionavel</b> e <b>ativo</b>: sim ou não.</li>
+<li><b>faixas</b>: preço por quantidade, separado por ponto e vírgula, como <code>50 = 16,90; 100 = 14,90</code>.</li>
+<li><b>preco_promocional</b>, <b>promo_inicio</b> e <b>promo_fim</b>: promoção com data (datas como 31/12/2026; vazias = já vale / até tirar). O preço promocional precisa ser menor que o normal. Para tirar a promoção, escreva <b>remover</b> em preco_promocional.</li>
+<li><b>peso_kg</b>, <b>altura_cm</b>, <b>largura_cm</b> e <b>comprimento_cm</b>: peso (kg) e medidas da embalagem de uma unidade (cm), usados na cotação do frete dos Correios. Medida vazia num produto novo usa a caixa padrão do frete; para voltar à caixa padrão, escreva <b>remover</b>.</li>
+<li>Num produto que já existe, célula vazia mantém o valor atual.</li>
+</ul></div>
+{% endblock %}

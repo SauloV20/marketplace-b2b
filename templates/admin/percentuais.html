@@ -1,0 +1,42 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.formacao_preco') }}">← Formação de preço</a></p>
+<h1>Percentuais de impostos e despesas</h1>
+<div class="box"><p>Cadastre aqui cada imposto ou despesa com a sua porcentagem (PIS, COFINS, IPI, comissão, taxa de cartão, embalagem…) e diga para quais produtos ele vale.</p>
+<ul class="lista-simples">
+<li><b>Sobre o preço de venda</b>: entra junto com o ICMS e os impostos da venda (o preço é calculado para sobrar o markup depois de pagar esse %).</li>
+<li><b>Sobre o preço de compra</b>: soma no custo do produto, como o IPI.</li>
+<li><b>Vale para</b>: todos os produtos, uma categoria ou um produto. Com o <b>mesmo nome</b> em mais de um nível, vale o mais específico: produto, depois categoria, depois todos. Com estado, vale só na entrega para aquele estado e tem prioridade sobre o sem estado.</li>
+<li>Exemplo: “PIS 1,65%” para todos e “PIS 0%” num produto monofásico. Esse produto fica sem PIS, os outros continuam com 1,65%.</li></ul>
+<p class="mute pequeno">Os percentuais mudam o preço dos produtos com <b>preço calculado</b> e entram na proteção de margem e no relatório de lucro de todos os produtos. Hoje os impostos e despesas gerais da venda{% if loja %} em {{ loja }}{% endif %} somam <b>{{ num(total_geral) }}%</b> (sem os percentuais de categoria e produto). Confirme as alíquotas com o seu contador.</p></div>
+
+<form class="f box" method="post" action="{{ url_for('admin.percentual', xid=x.id) if x else url_for('admin.percentuais') }}" id="cadastro"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>{{ 'Editar ' ~ x.nome if x else 'Novo percentual' }}</h2>
+<label>Nome<input name="nome" maxlength="60" required value="{{ v.get('nome', '') }}" placeholder="ex.: PIS, COFINS, Comissão"></label>
+<label>Percentual (%)<input name="valor" inputmode="decimal" required value="{{ v.get('valor', '') }}" placeholder="ex.: 1,65"></label>
+<label>Base<select name="base">{% for k, n in bases.items() %}<option value="{{ k }}" {{ 'selected' if v.get('base') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Vale para<select name="escopo">{% for k, n in escopos.items() %}<option value="{{ k }}" {{ 'selected' if v.get('escopo') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Categoria <small class="mute">(se escolheu “Uma categoria”)</small><select name="category_id"><option value="">—</option>{% for c in categorias %}<option value="{{ c.id }}" {{ 'selected' if v.get('category_id') == c.id|string }}>{{ c.name }}</option>{% endfor %}</select></label>
+<label>Produto <small class="mute">(se escolheu “Um produto”: código ou nome exato)</small><input name="produto" maxlength="160" value="{{ v.get('produto', '') }}"></label>
+<label>Estado de entrega <small class="mute">(vazio = todos)</small><select name="uf"><option value="">Todos os estados</option>{% for uf in ufs %}<option {{ 'selected' if v.get('uf') == uf }}>{{ uf }}</option>{% endfor %}</select></label>
+<label>Observação<input name="observacao" maxlength="200" value="{{ v.get('observacao', '') }}" placeholder="opcional: de onde vem a alíquota"></label>
+<label class="wide"><span><input type="checkbox" name="ativo" {{ 'checked' if v.get('ativo') }}> Ativo (desmarcado, fica guardado mas não entra no cálculo)</span></label>
+<div class="acts-row"><button class="btn">{{ 'Salvar e recalcular preços' if x else 'Cadastrar e recalcular preços' }}</button>
+{% if x %}<a class="btn ghost" href="{{ url_for('admin.percentuais') }}">Cancelar</a>
+<button class="btn ghost perigo" name="acao" value="excluir" formnovalidate data-confirmar="Excluir o percentual {{ x.nome }}? Os preços calculados serão refeitos sem ele.">Excluir</button>{% endif %}</div>
+</form>
+
+<section class="box" style="overflow-x:auto"><h2>Cadastrados ({{ lista|length }})</h2>
+<div class="chips" style="margin-bottom:12px"><a class="chip {{ 'on' if not filtro }}" href="{{ url_for('admin.percentuais') }}">Todos</a>
+{% for k, n in escopos.items() %}<a class="chip {{ 'on' if filtro == k }}" href="{{ url_for('admin.percentuais', filtro=k) }}">{{ n }}</a>{% endfor %}
+{% for k, n in bases.items() %}<a class="chip {{ 'on' if filtro == k }}" href="{{ url_for('admin.percentuais', filtro=k) }}">{{ n }}</a>{% endfor %}</div>
+{% if lista %}<table><tr><th>Nome</th><th>%</th><th>Base</th><th>Vale para</th><th>Estado</th><th>Situação</th><th></th></tr>
+{% for r in lista %}<tr><td><b>{{ r.nome }}</b>{% if r.observacao %}<br><small class="mute">{{ r.observacao }}</small>{% endif %}</td>
+<td class="num">{{ num(r.valor) }}%</td><td>{{ 'Venda' if r.base == 'venda' else 'Compra' }}</td>
+<td>{% if r.escopo == 'produto' and r.produto %}Produto: <a class="link" href="{{ url_for('admin.produto_custo', pid=r.product_id) }}">{{ r.produto.name }}</a>{% elif r.escopo == 'categoria' and r.categoria %}Categoria: {{ r.categoria.name }}{% else %}Todos os produtos{% endif %}</td>
+<td>{{ r.uf or 'Todos' }}</td><td>{% if r.ativo %}<span class="tag">ativo</span>{% else %}<span class="tag off">inativo</span>{% endif %}</td>
+<td><a class="btn ghost" href="{{ url_for('admin.percentual', xid=r.id) }}#cadastro">Editar</a>
+<form method="post" action="{{ url_for('admin.percentual', xid=r.id) }}" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="ativar"><input type="hidden" name="voltar" value="lista"><button class="btn ghost">{{ 'Desativar' if r.ativo else 'Ativar' }}</button></form></td></tr>{% endfor %}
+</table>{% else %}<p class="mute">Nenhum percentual cadastrado{% if filtro %} neste filtro{% endif %}. Use o formulário acima para cadastrar o primeiro.</p>{% endif %}
+</section>
+{% endblock %}

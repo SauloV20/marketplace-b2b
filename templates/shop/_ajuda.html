@@ -1,0 +1,14 @@
+<div class="chat" id="ajuda">
+<button class="chat-abrir" type="button" aria-expanded="false" aria-controls="ajuda-janela">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg>
+<span>Ajuda</span></button>
+<section class="chat-janela" id="ajuda-janela" hidden aria-label="Perguntas frequentes">
+<header><div><b>Como podemos ajudar?</b><small>Perguntas frequentes do Marketplace B2B</small></div>
+<button class="chat-fechar" type="button" aria-label="Fechar ajuda">×</button></header>
+<div class="ajuda-lista">
+{% for p in perguntas_ajuda %}<details><summary>{{ p.pergunta }}</summary><p>{{ formatar_ajuda(p.resposta) }}</p></details>{% endfor %}
+</div>
+<p class="chat-rodape ajuda-contato">Não achou o que procurava?
+{% if whatsapp_loja %}<a class="btn" href="https://wa.me/{{ whatsapp_loja }}" target="_blank" rel="noopener">Falar no WhatsApp</a>{% else %}<a href="{{ url_for('shop.privacidade') }}">Veja nossos contatos</a>{% endif %}</p>
+</section></div>
+<script src="{{ url_for('static', filename='ajuda.js') }}"></script>

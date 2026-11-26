@@ -1,0 +1,20 @@
+# Dependabot: toda segunda, abre PRs com as versões novas das bibliotecas (requirements.txt) e das ações do GitHub.
+# Cada PR passa pelos testes automáticos; com tudo verde, é só fazer o merge.
+# Atualizações de segurança chegam assim que saem (independente do dia).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    groups:
+      bibliotecas:  # versões menores e correções juntas num PR só (menos PRs para revisar)
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

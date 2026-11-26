@@ -1,0 +1,39 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.fornecedores') }}">← Fornecedores</a></p>
+<h1>{{ f.nome }}{% if not f.ativo %} <span class="tag off">inativo</span>{% endif %}</h1>
+
+<section class="box" style="overflow-x:auto"><h2>Produtos e preços de compra</h2>
+<p class="mute pequeno">Preço por unidade vendida na loja (se compra a caixa, divida pelo número de unidades). O custo soma IPI, ICMS-ST e o frete da compra ({{ num(frete_pct(f)|round(2)) }}%) e tira os créditos ({{ num(f.credito_pct) }}%). “Usado” indica que este é o preço que o produto usa no cálculo.</p>
+{% if itens %}<form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="precos">
+<table class="tabela-campos">
+<tr><th>Produto</th><th>Código no fornecedor</th><th>Preço de compra (R$)</th><th>IPI %</th><th>ICMS-ST %</th><th>Custo</th><th></th></tr>
+{% for c in itens %}{% set custo = custo_de(c) %}{% set usado = fonte(c.product) %}
+<tr><td><a class="link" href="{{ url_for('admin.produto_custo', pid=c.product_id) }}">{{ c.product.name }}</a>{% if c.product.codigo %}<br><small class="mute">{{ c.product.codigo }}</small>{% endif %}
+{% if usado and usado.id == c.id %}<br><span class="tag">usado</span>{% endif %}{% if c.product.preco_auto %} <span class="tag">preço calculado</span>{% endif %}</td>
+<td><input name="codigo_{{ c.id }}" value="{{ c.codigo or '' }}" maxlength="60" aria-label="Código no fornecedor"></td>
+<td><input name="preco_compra_{{ c.id }}" inputmode="decimal" value="{{ num(c.preco_compra) }}" required aria-label="Preço de compra"></td>
+<td><input name="ipi_pct_{{ c.id }}" inputmode="decimal" value="{{ num(c.ipi_pct) }}" aria-label="IPI"></td>
+<td><input name="st_pct_{{ c.id }}" inputmode="decimal" value="{{ num(c.st_pct) }}" aria-label="ICMS-ST"></td>
+<td class="num">{{ custo.total|brl }}</td>
+<td><button class="btn ghost" form="tirar-{{ c.id }}" data-confirmar="Tirar este produto da lista do fornecedor?">Tirar</button></td></tr>
+{% endfor %}</table>
+<div class="acts-row"><button class="btn">Salvar preços de compra</button></div></form>
+{% for c in itens %}<form id="tirar-{{ c.id }}" method="post" hidden><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="remover"><input type="hidden" name="cid" value="{{ c.id }}"></form>{% endfor %}
+{% else %}<p class="mute">Nenhum produto ainda.</p>{% endif %}</section>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="incluir">
+<h2>Incluir produto</h2>
+<label>Produto (código, #número ou nome exato)<input name="produto" required placeholder="Ex.: DCI-412"></label>
+<label>Preço de compra (R$)<input name="preco_compra" inputmode="decimal" required placeholder="12,50"></label>
+<label>IPI %<input name="ipi_pct" inputmode="decimal" placeholder="0"></label>
+<label>ICMS-ST %<input name="st_pct" inputmode="decimal" placeholder="0"></label>
+<label>Código no fornecedor<input name="codigo" maxlength="60"></label>
+<div><button class="btn">Incluir</button></div></form>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="dados">
+<h2>Dados do fornecedor</h2>
+{% set dados_fornecedor = f %}{% include "admin/_fornecedor_campos.html" %}
+<div class="acts wide"><button class="btn">Salvar</button>
+<button class="btn ghost perigo" formaction="{{ url_for('admin.fornecedor_excluir', fid=f.id) }}" formnovalidate data-confirmar="Excluir este fornecedor e todos os preços de compra dele? Isso não pode ser desfeito.">Excluir fornecedor</button></div></form>
+{% endblock %}

@@ -1,0 +1,5 @@
+{# Período e situação dos pedidos (relatório de vendas e lucro). #}
+<label>Período<select name="periodo">{% for k, n in periodos.items() %}<option value="{{ k }}" {{ 'selected' if k == atalho }}>{{ n }}</option>{% endfor %}{% if not atalho %}<option value="" selected>Personalizado</option>{% endif %}</select></label>
+<label>De<input type="date" name="de" value="{{ r.de.isoformat() if not atalho else '' }}"></label>
+<label>Até<input type="date" name="ate" value="{{ r.ate.isoformat() if not atalho else '' }}"></label>
+<label>Pedidos<select name="situacao">{% for k, n in situacoes.items() %}<option value="{{ k }}" {{ 'selected' if k == r.situacao }}>{{ n }}</option>{% endfor %}</select></label>

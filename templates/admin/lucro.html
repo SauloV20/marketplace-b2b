@@ -1,0 +1,29 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Lucro</h1>
+<form class="busca-pedidos box" method="get">
+{% include "admin/_filtro_periodo.html" %}
+<input type="hidden" name="aba" value="{{ aba }}">
+<button class="btn">Ver</button>
+<a class="btn ghost" href="{{ url_for('admin.lucro_planilha', **args) }}">Baixar em Excel</a></form>
+<p class="mute">Receita = itens − cupom (o frete não entra). Custo = o custo de cada item guardado na hora da venda (custo médio das compras ou o da formação de preço). Impostos e despesas = a % da venda do estado de entrega, da <a class="link" href="{{ url_for('admin.formacao_preco') if pode('custos') else '#' }}">Formação de preço</a> (estimativa).</p>
+
+{% set t = r.total %}
+<div class="kpis">
+<div class="box kpi">Receita<b>{{ t.receita|brl }}</b><small class="mute">{{ t.pedidos }} pedido(s)</small></div>
+<div class="box kpi">Custo<b>{{ t.custo|brl }}</b></div>
+<div class="box kpi">Impostos e despesas<b>{{ t.impostos|brl }}</b></div>
+<div class="box kpi">Lucro estimado<b class="{{ 'gratis' if t.lucro >= 0 }}">{{ t.lucro|brl }}</b><small class="mute">margem {{ t.margem|uma_casa }}%</small></div></div>
+
+{% if t.itens_sem_custo %}<div class="msg">{{ t.itens_sem_custo }} item(ns) vendido(s) sem custo (pedidos de antes do ERP ou produtos sem preço de compra): o lucro deles aparece maior do que é.
+<form method="post" action="{{ url_for('admin.lucro_preencher') }}" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">{% for k, v in args.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+<button class="link">Usar o custo de hoje nesses itens</button></form></div>{% endif %}
+
+<div class="chips">{% for k, n in (('produto', 'Por produto'), ('categoria', 'Por categoria'), ('cliente', 'Por cliente'), ('estado', 'Por estado')) %}<a class="chip {{ 'on' if aba == k }}" href="{{ url_for('admin.lucro_pagina', aba=k, **args) }}">{{ n }}</a>{% endfor %}</div>
+<section class="box" style="overflow-x:auto">
+{% set linhas = r[aba] if aba in ('produto', 'categoria', 'cliente', 'estado') else r.produto %}
+{% if linhas %}<table><tr><th>{{ {'produto': 'Produto', 'categoria': 'Categoria', 'cliente': 'Cliente', 'estado': 'Estado'}.get(aba, 'Produto') }}</th><th class="num">Qtd</th><th class="num">Receita</th><th class="num">Custo</th><th class="num">Impostos</th><th class="num">Lucro</th><th class="num">Margem</th></tr>
+{% for g in linhas[:200] %}<tr><td>{{ g.rotulo }}{% if g.sem_custo %} <small class="tag off">{{ g.sem_custo }} sem custo</small>{% endif %}</td><td class="num">{{ g.qtd }}</td><td class="num">{{ g.receita|brl }}</td><td class="num">{{ g.custo|brl }}</td><td class="num">{{ g.impostos|brl }}</td>
+<td class="num"><b class="{{ 'gratis' if g.lucro >= 0 }}">{{ g.lucro|brl }}</b></td><td class="num">{{ g.margem|uma_casa }}%</td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Nenhuma venda no período.</p>{% endif %}</section>
+{% endblock %}

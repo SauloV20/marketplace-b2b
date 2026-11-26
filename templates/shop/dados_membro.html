@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Meus dados · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow">
+<h1>Meus dados</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<section class="box"><h3>Empresa</h3>
+<p><b>{{ cliente.razao_social or cliente.name }}</b>{% if cliente.documento %} · CNPJ {{ fmt_doc(cliente.documento) }}{% endif %}</p>
+<p class="mute">Você compra pela conta da empresa como <b>{{ nome_papel(eu)|lower }}</b>{% if eu.papel == 'comprador' %}{% if eu.limite_aprovacao is not none %}: pedidos acima de {{ eu.limite_aprovacao|brl }} precisam de aprovação{% else %}: seus pedidos precisam de aprovação{% endif %}{% endif %}. Os dados da empresa são cuidados por {{ cliente.name }}.</p></section>
+<form class="box stack" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><h3>Seus dados</h3>
+<label>Nome<input name="nome" value="{{ eu.name }}" required maxlength="120" autocomplete="name"></label>
+<label>E-mail<input value="{{ eu.email }}" disabled></label>
+<label>Telefone<input name="telefone" value="{{ eu.phone or '' }}" maxlength="30" autocomplete="tel" inputmode="tel"></label>
+<button class="btn">Salvar</button></form>
+<form class="box stack" method="post" action="{{ url_for('account.senha') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><h3>Alterar senha</h3>
+<label>Senha atual<input type="password" name="atual" required autocomplete="current-password"></label>
+{% include "shop/_senha_nova.html" %}
+<button class="btn">Alterar senha</button></form>
+</main>
+{% endblock %}

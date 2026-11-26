@@ -1,0 +1,39 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.pedido', oid=o.id) }}">← Pedido #{{ o.id }}</a></p>
+<h1>Emitir NF-e do pedido #{{ o.id }}</h1>
+<p class="mute">{{ ambientes[e.ambiente] }} · série {{ e.serie }}{% if aberta %} · reenvio da nota {{ aberta.numero }} ({{ aberta.cstat }} {{ aberta.motivo|truncate(120) }}){% endif %}</p>
+{% for a in avisos %}<div class="msg">{{ a }}</div>{% endfor %}
+{% if erros %}<div class="msg"><b>Antes de emitir:</b><ul class="lista-simples">{% for x in erros %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Destinatário</h2>
+<label>Nome ou razão social<input name="nome" value="{{ f.get('nome', '') }}" maxlength="60" required></label>
+<label>CPF ou CNPJ<input name="documento" value="{{ f.get('documento', '') }}" inputmode="numeric" required></label>
+<label class="wide">Situação perante o ICMS<select name="indicador_ie">{% for k, n in indicadores.items() %}<option value="{{ k }}" {{ 'selected' if f.get('indicador_ie') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Inscrição estadual<input name="ie" value="{{ f.get('ie', '') }}" inputmode="numeric"></label>
+<label>E-mail<input name="email" value="{{ f.get('email', '') }}" maxlength="60"></label>
+<label>CEP<span class="cep-linha"><input name="cep" value="{{ f.get('cep', '') }}" inputmode="numeric" required><button type="button" class="btn ghost" data-buscar-cep="{{ url_for('admin.fiscal_cep', cep='00000000') }}">Buscar pelo CEP</button></span></label>
+<label>Rua<input name="logradouro" value="{{ f.get('logradouro', '') }}" maxlength="60" required></label>
+<label>Número<input name="numero" value="{{ f.get('numero', '') }}" maxlength="60" required></label>
+<label>Complemento<input name="complemento" value="{{ f.get('complemento', '') }}" maxlength="60"></label>
+<label>Bairro<input name="bairro" value="{{ f.get('bairro', '') }}" maxlength="60" required></label>
+<label>Cidade<input name="municipio" value="{{ f.get('municipio', '') }}" maxlength="60" required></label>
+<label>Código IBGE da cidade<input name="cod_municipio" value="{{ f.get('cod_municipio', '') }}" maxlength="7" required></label>
+<label>Estado<select name="uf" required><option value="">—</option>{% for uf in ufs %}<option {{ 'selected' if f.get('uf') == uf }}>{{ uf }}</option>{% endfor %}</select></label>
+<label>Telefone<input name="telefone" value="{{ f.get('telefone', '') }}" inputmode="tel"></label>
+<label class="wide"><span><input type="checkbox" name="consumidor_final" {{ 'checked' if f.get('consumidor_final') }}> Consumidor final (compra para uso, não para revender)</span></label>
+<p class="wide mute pequeno">O endereço do pedido é texto livre: confira número e bairro. Em homologação, a SEFAZ exige que o nome do destinatário saia como “SEM VALOR FISCAL” (o sistema troca sozinho).</p>
+<h2>Transporte e observações</h2>
+<label>Frete<select name="mod_frete">{% for k, n in fretes.items() %}<option value="{{ k }}" {{ 'selected' if f.get('mod_frete') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Volumes<input name="volumes" type="number" min="0" value="{{ f.get('volumes', '1') }}"></label>
+<label class="wide">Informações complementares desta nota<textarea name="info" rows="2" maxlength="1000">{{ f.get('info', '') }}</textarea></label>
+
+{% if dados %}<div class="wide" style="overflow-x:auto"><h2>Itens</h2>
+<table><tr><th>Produto</th><th>NCM</th><th>CFOP</th><th>ICMS</th><th class="num">Qtd</th><th class="num">Valor</th><th class="num">Desconto</th><th class="num">Frete</th></tr>
+{% for i in dados.itens %}<tr><td>{{ i.descricao }}</td><td>{{ i.ncm }}</td><td>{{ i.cfop }}</td><td>{{ i.icms_situacao }}{% if i.icms_aliquota %} · {{ i.icms_aliquota|num }}%{% endif %}</td>
+<td class="num">{{ i.quantidade|num }} {{ i.unidade }}</td><td class="num">{{ i.valor_total|brl }}</td><td class="num">{{ i.desconto|brl if i.desconto else '' }}</td><td class="num">{{ i.frete|brl if i.frete else '' }}</td></tr>{% endfor %}</table>
+<p>Total da nota: <b>{{ dados.total|brl }}</b> · {{ 'operação interna' if dados.id_destino == 1 else 'interestadual' }}{% if dados.duplicatas %} · {{ dados.duplicatas|length }} duplicata(s){% endif %}</p></div>{% endif %}
+<div class="acts wide"><button class="btn" {% if e.ambiente == '1' %}data-confirmar="Emitir a NF-e em PRODUÇÃO (com valor fiscal)?"{% endif %}>{{ 'Reenviar NF-e' if aberta else 'Emitir NF-e' }}</button></div></form>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='fiscal.js') }}"></script>{% endblock %}

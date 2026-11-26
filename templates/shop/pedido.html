@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Pedido #{{ o.id }} · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow">
+<h1>{{ 'Orçamento' if o.status == 'orcamento' else 'Pedido' }} #{{ o.id }} {{ 'enviado' if o.status == 'orcamento' else 'recebido' }}</h1>
+<p class="mute">Obrigado, {{ o.customer_name }}! Pagamento: <b>{{ metodos.get(o.payment_method, o.payment_method or '—') }}{% if o.prazo %} em {{ o.prazo }} dias{% endif %}</b> · Total <b>{{ o.total|brl }}</b></p>
+{% if o.razao_social %}<p class="mute">{{ o.razao_social }} · CNPJ {{ fmt_doc(o.documento) }}</p>{% endif %}
+<section class="box">
+{% if o.status == 'aprovacao' %}
+  <h3>Aguardando aprovação da empresa</h3><p>O pedido foi enviado para o responsável da sua empresa aprovar. Depois da aprovação, ele segue para o Marketplace B2B e aparece a forma de pagamento.</p>
+{% elif o.status == 'orcamento' %}
+  <h3>Orçamento em análise</h3><p>Vamos conferir preços, prazo e frete e responder para {{ o.customer_email }}. O estoque é reservado quando o orçamento for aprovado.</p>
+  {% if wa_link is defined %}<a class="btn ghost" href="{{ wa_link }}" target="_blank" rel="noopener">Falar sobre o orçamento no WhatsApp</a>{% endif %}
+{% elif o.status == 'pago' %}
+  <h3>Pagamento confirmado</h3><p>Recebemos o pagamento do pedido #{{ o.id }}. Obrigado!</p>
+{% elif o.status == 'cancelado' %}
+  <h3>Pedido cancelado</h3>
+{% elif o.payment_method == 'faturado' %}
+  <h3>Boleto faturado</h3><p>Os boletos ({{ o.prazo }} dias) seguem com a nota fiscal para {{ o.customer_email }}.</p>
+{% elif o.payment_method == 'pix' %}
+  {% if pix_code is defined %}
+  <h3>Pague com Pix</h3>
+  {% if pix_qr %}<div class="qr">{{ pix_qr|safe }}</div>{% endif %}
+  <label>Pix copia e cola<textarea id="pix" readonly rows="4">{{ pix_code }}</textarea></label>
+  <button class="btn" type="button" data-copiar="#pix">Copiar código</button>
+  {% if pix_auto is defined %}<p class="mute" id="pix-espera" data-pix-status="{{ url_for('shop.pedido_pix', oid=o.id) }}">Assim que o pagamento cair, esta página confirma sozinha.</p>{% endif %}
+  {% else %}<p>Nossa equipe vai enviar a chave Pix para o seu contato em instantes.</p>{% endif %}
+{% elif o.payment_method == 'whatsapp' %}
+  <h3>Combine pelo WhatsApp</h3>
+  {% if wa_link is defined %}<a class="btn" href="{{ wa_link }}" target="_blank" rel="noopener">Abrir conversa no WhatsApp</a>
+  {% else %}<p>Nossa equipe vai falar com você pelo telefone informado.</p>{% endif %}
+{% elif o.payment_method == 'cartao' %}
+  <h3>Cartão de crédito</h3>
+  {% if o.status == 'pendente' and cartao_ligado and o.cartao_aberto and o.cartao_link %}
+  <p>O pagamento é feito na página segura da Efí, onde você digita o cartão e escolhe as parcelas. Os dados do cartão não passam pelo site do Marketplace B2B.</p>
+  <a class="btn" href="{{ o.cartao_link }}" target="_blank" rel="noopener noreferrer">Pagar com cartão</a>
+  {% if cartao_situacao %}<p class="mute">Situação: {{ cartao_situacao }}. Assim que a Efí confirmar, o pedido muda para pago e você recebe um e-mail.</p>{% endif %}
+  {% elif o.status == 'pendente' and cartao_novo %}
+  {% if cartao_situacao %}<p>{{ cartao_situacao }}. Gere um novo link para tentar de novo, com outro cartão se preferir.</p>{% else %}<p>Gere o link para pagar na página segura da Efí.</p>{% endif %}
+  <form method="post" action="{{ url_for('shop.pedido_cartao', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn">{{ 'Gerar novo link de pagamento' if o.cartao_id else 'Gerar link de pagamento' }}</button></form>
+  {% elif o.status == 'pendente' %}
+  <p>Enviaremos um link seguro de pagamento para {{ o.customer_email }}. Nunca pedimos dados do cartão por aqui.</p>
+  {% else %}<p>Pagamento com cartão{% if cartao_situacao %}: {{ cartao_situacao|lower }}{% endif %}.</p>{% endif %}
+{% else %}
+  <h3>Boleto</h3><p>Enviaremos o boleto para {{ o.customer_email }}. O pedido é liberado após a compensação.</p>
+{% endif %}
+</section>
+<section class="box"><h3>Itens</h3>
+{% for i in o.items %}<div class="sum-row"><span>{{ i.quantity }}× {{ i.product.name }}{% if i.fracionado %} <small class="mute">(fracionado)</small>{% endif %}</span><b>{{ (i.unit_price * i.quantity)|brl }}</b></div>{% endfor %}
+{% include "shop/_cupom_frete.html" %}
+<div class="sum-row total"><span>Total</span><b>{{ o.total|brl }}</b></div>
+<p class="mute">Entrega em: {{ o.address }}{% if o.cep %} · CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}{% endif %}</p></section>
+{% if cliente_logado and o.user_id == cliente_logado.id and o.status in ('pendente', 'orcamento') and not o.envio and not o.pix_txid and not o.cartao_aberto %}<p class="mute">Precisa mudar alguma quantidade? <a class="link" href="{{ url_for('account.pedido_detalhe', oid=o.id) }}#alterar">Alterar {{ 'orçamento' if o.status == 'orcamento' else 'pedido' }}</a></p>{% endif %}
+<a class="link" href="/">Voltar à loja</a>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='pedido.js') }}"></script>{% endblock %}

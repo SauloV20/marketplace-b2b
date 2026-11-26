@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Pedido #{{ o.id }} · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow">
+<a class="link" href="{{ url_for('account.pedidos') }}">← Meus pedidos</a>
+<h1 style="margin-top:12px">Pedido #{{ o.id }}</h1>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<ol class="steps">{% if o.status == 'orcamento' or o.payment_method == 'orcamento' %}<li class="on">Orçamento enviado</li><li class="{{ '' if o.status == 'orcamento' else 'on' }}">Orçamento aprovado</li>{% else %}<li class="on">Pedido feito</li>{% endif %}<li class="{{ 'on' if o.status == 'pago' }}">Pagamento confirmado</li>{% if o.status != 'cancelado' and o.status != 'orcamento' %}<li class="{{ 'on' if o.envio }}">Enviado</li><li class="{{ 'on' if o.envio == 'entregue' }}">Entregue</li>{% endif %}{% if o.status == 'cancelado' %}<li class="bad">Cancelado</li>{% endif %}</ol>
+<section class="box"><h3>Itens</h3>
+{% for i in o.items %}<div class="sum-row"><span>{{ i.quantity }}× {{ i.product.name }}{% if i.fracionado %} <small class="mute">(fracionado)</small>{% endif %}{% if (o.status == 'pago' or o.envio) and i.product.active %} <a class="link pequeno" href="{{ link_produto(i.product) }}#avaliacoes">Avaliar</a>{% endif %}</span><b>{{ (i.unit_price * i.quantity)|brl }}</b></div>{% endfor %}
+{% include "shop/_cupom_frete.html" %}
+<div class="sum-row total"><span>Total</span><b>{{ o.total|brl }}</b></div></section>
+{% if not bloqueio_edicao %}<details class="box alterar-pedido" id="alterar"><summary><b>Alterar este {{ 'orçamento' if o.status == 'orcamento' else 'pedido' }}</b> <span class="mute">mudar quantidades, tirar ou incluir produtos</span></summary>
+<form method="post" action="{{ url_for('account.alterar_pedido', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<div style="overflow-x:auto"><table>
+<tr><th>Produto</th><th>Quantidade</th></tr>
+{% for pid in o.items|map(attribute='product_id')|unique %}{% set do_produto = o.items|selectattr('product_id', 'equalto', pid)|list %}{% set prod = do_produto[0].product %}
+<tr><td>{{ prod.name }}{% if prod.qtd_minima > 1 or prod.multiplo > 1 %}<br><small class="mute">mínimo {{ prod.qtd_minima }}{% if prod.multiplo > 1 %} · {{ 'embalagem com ' if prod.fracionavel else 'múltiplos de ' }}{{ prod.multiplo }}{% endif %}</small>{% endif %}</td>
+<td><input name="qtd_{{ pid }}" type="number" min="0" value="{{ do_produto|sum(attribute='quantity') }}" inputmode="numeric" class="qtd-recompra" aria-label="Quantidade de {{ prod.name }}"></td></tr>{% endfor %}
+<tr><td><label>Incluir produto pelo código<input name="novo_produto" maxlength="60" placeholder="Ex.: DISCO-7" autocapitalize="characters"></label></td>
+<td><label>Qtd<input name="novo_qtd" type="number" min="1" value="1" class="qtd-recompra"></label></td></tr></table></div>
+<p class="mute pequeno">Quantidade 0 tira o produto. Os itens que você mudar seguem o preço e as regras de hoje; os outros ficam como estão. {% if o.status == 'pendente' %}O frete e o total são recalculados.{% else %}O Marketplace B2B confere tudo ao responder o orçamento.{% endif %}</p>
+<button class="btn">Salvar alterações</button></form></details>{% endif %}
+
+{% if o.envio %}<section class="box"><h3>{{ 'Pedido entregue' if o.envio == 'entregue' else 'Pedido enviado' }}</h3>
+<p>Transportadora: <b>{{ o.transportadora }}</b>{% if o.enviado_em %} · enviado em {{ o.enviado_em.strftime('%d/%m/%Y') }}{% endif %}{% if o.entregue_em %} · entregue em {{ o.entregue_em.strftime('%d/%m/%Y') }}{% endif %}</p>
+{% if o.rastreio %}<p>Código de rastreio: <b class="rastreio">{{ o.rastreio }}</b></p>{% endif %}
+{% if o.rastreio_link %}<p><a class="btn ghost" href="{{ o.rastreio_link }}" target="_blank" rel="noopener noreferrer">Acompanhar entrega</a></p>{% endif %}</section>{% endif %}
+{% set boletos = o.lancamentos|selectattr('boleto_id')|list %}{% if boletos %}<section class="box"><h3>Boletos</h3>
+{% for l in boletos %}<div class="sum-row"><span><b>{{ ('Parcela ' ~ l.parcela) if l.parcela else 'Boleto' }}</b> <small class="mute">{{ l.valor|brl }} · vence {{ l.vencimento.strftime('%d/%m/%Y') }}{% if l.boleto_linha and not l.pago_em %} · {{ l.boleto_linha }}{% endif %}</small></span>{% if l.pago_em %}<span class="tag">pago</span>{% else %}<a class="link" href="{{ l.boleto_link }}" target="_blank" rel="noopener">Abrir boleto</a>{% endif %}</div>{% endfor %}</section>{% endif %}
+{% if o.arquivos %}<section class="box"><h3>Documentos</h3>
+{% for a in o.arquivos %}<div class="sum-row"><span><b>{{ tipos[a.tipo] }}</b> <small class="mute">{{ a.nome }} · {{ tamanho(a.tamanho) }}</small></span><a class="link" href="{{ url_for('account.pedido_documento', oid=o.id, aid=a.id) }}">Baixar</a></div>{% endfor %}</section>{% endif %}
+<section class="box"><h3>Pagamento e entrega</h3>
+{% if o.razao_social %}<p>{{ o.razao_social }} · CNPJ {{ fmt_doc(o.documento) }}</p>{% endif %}
+<p>Pagamento: <b>{{ metodos.get(o.payment_method, o.payment_method) }}{% if o.prazo %} em {{ o.prazo }} dias{% endif %}</b> · <span class="tag {{ '' if o.status == 'pago' else 'off' }}">{{ status[o.status] }}</span></p>
+<p>Entrega em: {{ o.address }}</p><p class="mute">Contato: {{ o.customer_email }} · {{ o.customer_phone }}</p>
+<p class="mute">Feito em {{ o.created_at|hora_br }}</p></section>
+{% if o.devolucoes %}<section class="box" id="devolucao"><h3>Devoluções e trocas</h3>
+{% for d in o.devolucoes %}<div class="sum-row"><span><b>{{ dev.TIPOS[d.tipo] }}</b> <small class="mute">{{ d.criado_em|dia_br }} · {% for i in dev.itens(d) %}{{ i.qtd }}× {{ i.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</small>
+{% if d.resposta %}<br><small>{{ 'Motivo: ' if d.status == 'recusada' else 'Como enviar: ' }}{{ d.resposta }}</small>{% endif %}
+{% if d.status == 'concluida' and d.valor %}<br><small>Reembolso: {{ d.valor|brl }}</small>{% endif %}</span>
+<span class="tag {{ 'off' if d.status in ('solicitada', 'recusada') }}">{{ dev.STATUS[d.status] }}</span></div>{% endfor %}</section>{% endif %}
+{% if not dev_bloqueio %}<details class="box" id="{{ 'devolucao' if not o.devolucoes else 'pedir-devolucao' }}"><summary><b>Devolver ou trocar produtos</b> <span class="mute">até {{ dev.prazo_ate(o)|dia_br }}</span></summary>
+<form method="post" action="{{ url_for('account.pedir_devolucao', oid=o.id) }}" class="stack"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<div style="overflow-x:auto"><table><tr><th>Produto</th><th>Quantidade</th></tr>
+{% for i, livre in dev.disponiveis(o) %}<tr><td>{{ i.product.name }}{% if i.fracionado %} <small class="mute">(fracionado)</small>{% endif %}</td><td><input name="qtd_{{ i.id }}" type="number" min="0" max="{{ livre }}" value="0" inputmode="numeric" class="qtd-recompra" aria-label="Quantidade de {{ i.product.name }}"></td></tr>{% endfor %}</table></div>
+<label>O que você quer<select name="tipo"><option value="devolucao">Devolver e receber o valor de volta</option><option value="troca">Trocar pelo mesmo produto</option></select></label>
+<label>Motivo<textarea name="motivo" rows="3" maxlength="1000" required placeholder="Ex.: veio com defeito, produto errado, não serviu"></textarea></label>
+<p class="mute pequeno">O Marketplace B2B analisa e responde por e-mail com as instruções para enviar os produtos. O reembolso é feito depois que os produtos chegam.</p>
+<button class="btn">Enviar pedido</button></form></details>{% endif %}
+{% with visao_cliente = True %}{% include "_historico.html" %}{% endwith %}
+{% if o.status == 'aprovacao' %}<section class="box aprovar"><h3>Aguardando aprovação da empresa</h3>
+<p>Pedido feito por <b>{{ o.comprador_nome or o.customer_name }}</b>. Enquanto não for aprovado, ele não segue para o Marketplace B2B e o estoque não fica reservado.</p>
+{% if pode_aprovar %}<form method="post" action="{{ url_for('account.aprovar_pedido', oid=o.id) }}" class="acts-row"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<button class="btn" name="acao" value="aprovar">Aprovar e enviar para o Marketplace B2B</button>
+<button class="btn ghost perigo" name="acao" value="recusar" data-confirmar="Recusar este pedido?">Recusar</button></form>
+{% else %}<p class="mute">O titular da conta ou um aprovador da empresa recebeu um e-mail para aprovar.</p>{% endif %}</section>{% endif %}
+<div class="acts-row">
+{% if o.status == 'pendente' %}<a class="btn" href="{{ url_for('shop.pedido', oid=o.id) }}">Ver como pagar</a>{% endif %}
+{% if not bloqueio_edicao %}<a class="btn ghost" href="#alterar" data-abrir="#alterar">Alterar {{ 'orçamento' if o.status == 'orcamento' else 'pedido' }}</a>{% endif %}
+<form method="post" action="{{ url_for('account.repetir', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost">Comprar novamente</button></form>
+{% if o.status in ('pendente', 'orcamento', 'aprovacao') and not o.envio %}<form method="post" action="{{ url_for('account.cancelar', oid=o.id) }}" data-confirmar="Cancelar este pedido?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost">Cancelar pedido</button></form>{% endif %}
+</div></main>
+{% endblock %}

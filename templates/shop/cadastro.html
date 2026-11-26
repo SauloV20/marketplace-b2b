@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Criar conta · Marketplace B2B{% endblock %}
+{% block head %}<meta name="description" content="Crie a conta da sua empresa (CNPJ) ou CPF no Marketplace B2B para ver os preços de atacado, comprar com boleto faturado e pedir orçamento.">
+<link rel="canonical" href="{{ site_base }}/cadastro">{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<form class="login box auth" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><h2>Criar conta</h2>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% include "shop/_campos_empresa.html" %}
+<label>Seu nome<input name="nome" value="{{ f.get('nome', '') }}" required maxlength="120" autocomplete="name"></label>
+<label>E-mail<input type="email" name="email" value="{{ f.get('email', '') }}" required maxlength="120" autocomplete="email"></label>
+<label>Senha (mínimo 8 caracteres)<input type="password" name="senha" required minlength="8" maxlength="128" autocomplete="new-password"></label>
+<label>Repita a senha<input type="password" name="senha2" required minlength="8" maxlength="128" autocomplete="new-password"></label>
+<label class="aceite"><span><input type="checkbox" name="aceite" value="1" required {{ 'checked' if f.get('aceite') }}> Li e aceito a <a class="link" href="{{ url_for('shop.privacidade') }}" target="_blank" rel="noopener">Política de Privacidade</a> e os <a class="link" href="{{ url_for('shop.termos') }}" target="_blank" rel="noopener">Termos de Uso</a>.</span></label>
+<button class="btn">Criar conta</button>
+<p class="cat">Já tem conta? <a class="link" href="{{ url_for('account.entrar') }}">Entrar</a></p></form>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='cadastro.js') }}"></script>{% endblock %}

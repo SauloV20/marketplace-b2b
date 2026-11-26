@@ -1,0 +1,72 @@
+{% extends "admin/layout.html" %}
+{% set aberta = c.status in ('rascunho', 'enviado') %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.compras_lista') }}">← Compras</a></p>
+<h1>Compra #{{ c.id }} · {{ c.fornecedor.nome }} <span class="tag {{ 'off' if c.status == 'cancelado' }}">{{ situacoes[c.status] }}</span></h1>
+<p class="mute">Criada em {{ c.criado_em|hora_br }}{% if c.autor %} por {{ c.autor }}{% endif %}{% if c.enviado_em %} · enviada em {{ c.enviado_em|hora_br }}{% endif %}{% if c.recebido_em %} · recebida em {{ c.recebido_em|hora_br }}{% endif %}{% if c.nota %} · NF {{ c.nota }}{% endif %}</p>
+
+{% if c.status == 'rascunho' or c.status == 'enviado' %}
+<form method="post" class="box" style="overflow-x:auto" id="form-compra"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Itens</h2>
+{% if c.itens %}<table class="tabela-campos"><tr><th>Produto</th><th class="num">Estoque</th><th>Quantidade</th><th>Preço (R$)</th><th>IPI %</th><th>ST %</th><th class="num">Subtotal</th></tr>
+{% for i in c.itens %}<tr><td>{{ i.product.name }}{% if i.product.codigo %} <small class="mute">{{ i.product.codigo }}</small>{% endif %}{% if pedidos.get(i.product_id) %}<br><small class="mute">mais {{ pedidos[i.product_id] }} un em outras compras</small>{% endif %}</td>
+<td class="num">{{ i.product.stock }}</td>
+<td><input name="qtd_{{ i.id }}" inputmode="numeric" value="{{ i.quantidade }}" aria-label="Quantidade" style="max-width:100px"></td>
+<td><input name="preco_{{ i.id }}" inputmode="decimal" value="{{ i.preco|num }}" aria-label="Preço"></td>
+<td><input name="ipi_{{ i.id }}" inputmode="decimal" value="{{ i.ipi_pct|num }}" aria-label="IPI" style="max-width:80px"></td>
+<td><input name="st_{{ i.id }}" inputmode="decimal" value="{{ i.st_pct|num }}" aria-label="ICMS-ST" style="max-width:80px"></td>
+<td class="num">{{ (i.preco * i.quantidade)|brl }}</td></tr>{% endfor %}</table>
+<p class="mute pequeno">Quantidade 0 tira o item.</p>{% else %}<p class="mute">Nenhum item ainda: inclua abaixo.</p>{% endif %}
+<div class="f-grade" style="margin-top:12px">
+<label>Frete desta compra pago à parte (R$)<input name="frete" inputmode="decimal" value="{{ c.frete|duas_casas }}"></label>
+<label>Condição de pagamento (dias)<input name="condicao" value="{{ c.condicao }}" placeholder="28 ou 30/60/90 (vazio = à vista)"></label>
+<label>Previsão de entrega<input type="date" name="previsao" value="{{ c.previsao.isoformat() if c.previsao else '' }}"></label>
+<label class="wide">Observações para o fornecedor<textarea name="observacoes" rows="2" maxlength="2000">{{ c.observacoes or '' }}</textarea></label></div>
+<p>Produtos {{ t.produtos|brl }} · IPI e ST {{ t.impostos|brl }} · frete {{ t.frete|brl }} · <b>total {{ t.total|brl }}</b></p>
+<div class="acts-row"><button class="btn" name="acao" value="salvar">Salvar</button>
+{% if c.status == 'rascunho' %}<button class="btn ghost" name="acao" value="enviar">Salvar e marcar como enviado</button>{% endif %}</div>
+</form>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="incluir">
+<h2>Incluir produto</h2>
+<label>Produto (código, #número ou nome exato)<input name="produto" required></label>
+<label>Quantidade<input name="qtd" inputmode="numeric" required></label>
+<div><button class="btn ghost">Incluir</button></div></form>
+
+{% if c.itens %}<section class="box"><h2>Mandar ao fornecedor</h2>
+<div class="acts-row" style="margin-top:0"><a class="btn ghost" href="{{ url_for('admin.compra_imprimir', cid=c.id) }}" target="_blank" rel="noopener">Imprimir / PDF</a>
+{% if whatsapp %}<a class="btn ghost" href="{{ whatsapp }}" target="_blank" rel="noopener">Abrir no WhatsApp</a>{% endif %}
+{% if email %}<a class="btn ghost" href="{{ email }}">Abrir no e-mail</a>{% endif %}</div>
+<label class="pequeno" style="margin-top:12px">Texto do pedido (para copiar)<textarea rows="6" readonly>{{ texto }}</textarea></label>
+{% if not whatsapp and not email %}<p class="mute pequeno">Cadastre o telefone ou o e-mail do fornecedor para abrir direto no WhatsApp ou no e-mail.</p>{% endif %}</section>
+
+<form class="box" method="post" style="overflow-x:auto" id="receber"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="receber">
+<h2>Receber mercadoria</h2>
+<p class="mute pequeno">Confira com a nota fiscal: quantidade que chegou e preço de cada unidade. Ao gravar, o estoque sobe, o custo médio é recalculado e as contas a pagar entram no Financeiro (uma por prazo da condição).</p>
+<table class="tabela-campos"><tr><th>Produto</th><th class="num">Pedido</th><th>Chegou</th><th>Preço na nota (R$)</th></tr>
+{% for i in c.itens %}<tr><td>{{ i.product.name }}</td><td class="num">{{ i.quantidade }}</td>
+<td><input name="recebido_{{ i.id }}" inputmode="numeric" value="{{ i.quantidade }}" aria-label="Chegou" style="max-width:100px"></td>
+<td><input name="preco_{{ i.id }}" inputmode="decimal" value="{{ i.preco|num }}" aria-label="Preço na nota"></td></tr>{% endfor %}</table>
+<div class="f-grade" style="margin-top:12px">
+<label>Número da nota fiscal<input name="nota" maxlength="60"></label>
+<label>Frete pago à parte (R$)<input name="frete" inputmode="decimal" value="{{ c.frete|duas_casas }}"></label>
+<label>Condição de pagamento (dias)<input name="condicao" value="{{ c.condicao }}" placeholder="vazio = à vista"></label>
+<label class="wide"><span><input type="checkbox" name="atualizar_precos" checked> Atualizar o preço de compra deste fornecedor com o preço da nota (recalcula os preços calculados)</span></label></div>
+<div class="acts-row"><button class="btn" data-confirmar="Dar entrada desta compra no estoque? Não dá para desfazer pelo painel (use um ajuste de estoque se errar).">Receber e dar entrada no estoque</button></div></form>{% endif %}
+
+<form method="post" class="acts-row"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<button class="btn ghost" name="acao" value="cancelar" data-confirmar="Cancelar esta compra?">Cancelar compra</button>
+{% if c.status == 'rascunho' %}<button class="btn ghost perigo" name="acao" value="excluir" data-confirmar="Excluir este rascunho?">Excluir rascunho</button>{% endif %}</form>
+
+{% else %}
+<section class="box" style="overflow-x:auto"><h2>Itens</h2>
+<table><tr><th>Produto</th><th class="num">Pedido</th><th class="num">Chegou</th><th class="num">Preço</th><th class="num">IPI/ST</th></tr>
+{% for i in c.itens %}<tr><td>{{ i.product.name }}</td><td class="num">{{ i.quantidade }}</td><td class="num">{{ i.recebido if i.recebido is not none else '—' }}</td><td class="num">{{ i.preco|brl }}</td><td class="num">{{ i.ipi_pct|num }}% / {{ i.st_pct|num }}%</td></tr>{% endfor %}</table>
+{% if recebido %}<p>Recebido: produtos {{ recebido.produtos|brl }} · IPI e ST {{ recebido.impostos|brl }} · frete {{ recebido.frete|brl }} · <b>total {{ recebido.total|brl }}</b></p>{% endif %}
+{% if c.observacoes %}<p class="mute">{{ c.observacoes }}</p>{% endif %}</section>
+{% if contas %}<section class="box"><h2>Contas a pagar desta compra</h2><table><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th><th>Situação</th></tr>
+{% for l in contas %}<tr><td>{{ l.parcela or 'única' }}</td><td>{{ l.vencimento.strftime('%d/%m/%Y') }}</td><td class="num">{{ l.valor|brl }}</td><td>{{ 'paga em ' ~ l.pago_em.strftime('%d/%m/%Y') if l.pago_em else 'em aberto' }}</td></tr>{% endfor %}</table>
+{% if pode('financeiro') %}<p><a class="link" href="{{ url_for('admin.financeiro_pagina', tipo='pagar') }}">Ver no Financeiro</a></p>{% endif %}</section>{% endif %}
+{% if c.status == 'cancelado' %}<form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost perigo" name="acao" value="excluir" data-confirmar="Excluir esta compra cancelada?">Excluir</button></form>{% endif %}
+{% endif %}
+{% endblock %}

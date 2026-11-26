@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="panel"><aside class="side" id="menu-painel"><span class="logo">Marketplace B2B</span><button class="side-menu" type="button" data-menu-painel aria-expanded="false" aria-controls="menu-painel">Menu</button>
+{% macro item(endpoint, texto, tambem=()) %}<a href="{{ url_for(endpoint) }}" class="{{ 'on' if request.endpoint == endpoint or request.endpoint in tambem }}">{{ texto }}</a>{% endmacro %}
+{{ item('admin.hoje', 'Hoje') }}
+{% if pode('vendas') %}{{ item('admin.dashboard', 'Vendas') }}{{ item('admin.relatorios_pagina', 'Relatórios') }}{% endif %}
+{% if pode('pedidos') %}{{ item('admin.orders', 'Pedidos', ('admin.orcamento', 'admin.pedido')) }}{{ item('admin.devolucoes_lista', 'Devoluções e trocas', ('admin.devolucao',)) }}{% endif %}
+{% if pode('clientes') %}{{ item('admin.clientes', 'Clientes', ('admin.cliente',)) }}{% endif %}
+{% if pode('produtos') or pode('marketing') %}<span class="side-grupo">Loja</span>{% endif %}
+{% if pode('produtos') %}{{ item('admin.products', 'Produtos', ('admin.planilhas', 'admin.importar_planilha', 'admin.edit_product')) }}
+{{ item('admin.estoque_lista', 'Estoque', ('admin.estoque_produto',)) }}
+{{ item('admin.banners_lista', 'Banners', ('admin.banner_editar',)) }}{{ item('admin.categories', 'Categorias') }}{% endif %}
+{% if pode('marketing') %}{{ item('admin.ajuda_lista', 'Ajuda (FAQ)') }}{{ item('admin.cupons_lista', 'Cupons') }}{{ item('admin.carrinhos', 'Carrinhos abandonados') }}{{ item('admin.avaliacoes_lista', 'Avaliações') }}{{ item('admin.metricas', 'Métricas (Google)') }}{% endif %}
+{% if pode('custos') or pode('financeiro') or pode('fiscal') %}<span class="side-grupo">Gestão</span>{% endif %}
+{% if pode('fiscal') %}{{ item('admin.notas_lista', 'Notas fiscais', ('admin.nota', 'admin.fiscal_config', 'admin.pedido_nfe')) }}{% endif %}
+{% if pode('custos') %}{{ item('admin.fornecedores', 'Fornecedores', ('admin.fornecedor',)) }}
+{{ item('admin.compras_lista', 'Compras', ('admin.compra',)) }}
+{{ item('admin.notas_compra', 'Notas de compra', ('admin.nota_compra',)) }}
+{{ item('admin.formacao_preco', 'Formação de preço', ('admin.produto_custo', 'admin.percentuais', 'admin.percentual')) }}{% endif %}
+{% if pode('financeiro') %}{{ item('admin.financeiro_pagina', 'Financeiro') }}{{ item('admin.fluxo_caixa', 'Fluxo de caixa') }}
+{{ item('admin.lucro_pagina', 'Lucro') }}{% endif %}
+{% if acesso_total %}<span class="side-grupo">Configurações</span>{{ item('admin.frete_lista', 'Frete') }}
+{{ item('admin.backup_pagina', 'Backup e espaço') }}{{ item('admin.regras', 'Regras de venda') }}{{ item('admin.equipe', 'Equipe') }}{% endif %}
+<a href="{{ url_for('admin.manual') }}" class="{{ 'on' if request.endpoint == 'admin.manual' }}">Manual</a>
+<a href="{{ url_for('admin.conta') }}" class="{{ 'on' if request.endpoint == 'admin.conta' }}">Minha conta</a>
+<a href="/">Ver loja</a><form method="post" action="{{ url_for('admin.logout') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link side-out">Sair</button></form></aside>
+<main class="main">{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main></div>
+{% endblock %}

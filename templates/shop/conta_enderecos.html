@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Endereços · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Endereços de entrega</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<p class="mute">Matriz, filiais, obras: guarde os endereços e escolha na finalização da compra. O <b>principal</b> já vem preenchido, com o frete calculado.</p>
+<div class="enderecos">
+{% for e in cliente.enderecos %}
+{% if editar == e.id %}
+<form class="box f" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="eid" value="{{ e.id }}">
+<label>Nome<input name="apelido" value="{{ f.get('apelido', e.apelido) }}" maxlength="60" required></label>
+<label>CEP<input name="cep" value="{{ f.get('cep', fmt_cep(e.cep)) }}" inputmode="numeric" maxlength="9" required></label>
+<label class="wide">Endereço completo<input name="endereco" value="{{ f.get('endereco', e.endereco) }}" maxlength="300" required></label>
+<div class="acts-row"><button class="btn">Salvar</button> <a class="btn ghost" href="{{ url_for('account.enderecos') }}">Cancelar</a></div></form>
+{% else %}
+<div class="box endereco"><div><b>{{ e.apelido }}</b>{% if e.padrao %} <span class="tag">principal</span>{% endif %}
+<p>{{ e.endereco }}</p><p class="mute">CEP {{ fmt_cep(e.cep) }}</p></div>
+<div class="acts-row"><a class="link" href="{{ url_for('account.enderecos', editar=e.id) }}">Editar</a>
+{% if not e.padrao %}<form method="post" action="{{ url_for('account.endereco_padrao', eid=e.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link">Tornar principal</button></form>{% endif %}
+<form method="post" action="{{ url_for('account.endereco_excluir', eid=e.id) }}" data-confirmar="Remover este endereço?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link">Remover</button></form></div></div>
+{% endif %}
+{% else %}<p class="empty">Nenhum endereço salvo ainda. Ele também pode ser guardado na finalização da compra.</p>{% endfor %}
+</div>
+{% if not editar %}
+<form class="box f" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h3 class="wide">Novo endereço</h3>
+<label>Nome<input name="apelido" value="{{ f.get('apelido', '') }}" maxlength="60" required placeholder="Ex.: Matriz, Filial Campinas, Obra Centro"></label>
+<label>CEP<input name="cep" value="{{ f.get('cep', '') }}" inputmode="numeric" maxlength="9" required placeholder="00000-000"></label>
+<label class="wide">Endereço completo<input name="endereco" value="{{ f.get('endereco', '') }}" maxlength="300" required placeholder="Rua, número, complemento, bairro, cidade/UF"></label>
+<div><button class="btn">Adicionar endereço</button></div></form>
+{% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,5 @@
+<section class="box historico" id="historico"><h3>Histórico</h3>
+<ol class="linha-tempo">
+<li><time>{{ o.created_at|hora_br }}</time><span>{{ 'Orçamento enviado' if o.payment_method == 'orcamento' else 'Pedido feito' }} {{ 'por ' ~ o.comprador_nome if o.comprador_nome else 'pelo cliente' }}{% if o.cupom %} · cupom {{ o.cupom }}{% endif %}</span></li>
+{% for e in o.eventos %}<li class="autor-{{ e.autor }}"><time>{{ e.quando|hora_br }}</time><span>{{ e.texto }} <small class="mute">· {% if e.autor == 'cliente' %}cliente{% if e.autor_nome %} ({{ e.autor_nome }}){% endif %}{% elif e.autor == 'sistema' %}automático{% elif visao_cliente %}Marketplace B2B{% else %}{{ e.autor_nome or 'loja' }}{% endif %}</small></span></li>{% endfor %}
+</ol></section>

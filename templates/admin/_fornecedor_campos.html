@@ -1,0 +1,20 @@
+{# campos do cadastro do fornecedor; `dados_fornecedor` é o Fornecedor (edição) ou o formulário enviado (novo) #}
+{% set d = dados_fornecedor %}
+{% macro valor(campo, padrao='') %}{% if d is mapping %}{{ d.get(campo, padrao) }}{% else %}{{ d[campo] if d[campo] is not none else padrao }}{% endif %}{% endmacro %}
+{% macro pct(campo) %}{% if d is mapping %}{{ d.get(campo, '') }}{% else %}{{ num(d[campo]) }}{% endif %}{% endmacro %}
+{% set transporte = (d.get('transporte') if d is mapping else d.transporte) or 'fornecedor' %}
+{% set uf_atual = (d.get('uf') if d is mapping else d.uf) or '' %}
+<label>Nome ou razão social<input name="nome" value="{{ valor('nome') }}" maxlength="160" required></label>
+<label>CNPJ (opcional)<input name="documento" value="{{ fmt_doc(valor('documento')|trim) if d is not mapping else valor('documento') }}" inputmode="numeric" maxlength="18"></label>
+<label>Estado<select name="uf"><option value="">—</option>{% for uf in ufs %}<option {{ 'selected' if uf == uf_atual }}>{{ uf }}</option>{% endfor %}</select></label>
+<label>Contato<input name="contato" value="{{ valor('contato') }}" maxlength="120"></label>
+<label>Telefone / WhatsApp<input name="telefone" value="{{ valor('telefone') }}" maxlength="30" inputmode="tel"></label>
+<label>E-mail<input name="email" type="email" value="{{ valor('email') }}" maxlength="120"></label>
+<label class="wide">Como a mercadoria chega<select name="transporte">{% for k, nome in transportes.items() %}<option value="{{ k }}" {{ 'selected' if k == transporte }}>{{ nome }}</option>{% endfor %}</select></label>
+<label>Frete da compra (% sobre a compra)<input name="frete_pct" inputmode="decimal" value="{{ pct('frete_pct') }}" placeholder="0 = incluso no preço"></label>
+<label>Veículo próprio: custo de cada viagem (R$)<input name="custo_viagem" inputmode="decimal" value="{{ pct('custo_viagem') }}" placeholder="combustível, pedágio, motorista"></label>
+<label>Veículo próprio: valor trazido por viagem (R$)<input name="compra_viagem" inputmode="decimal" value="{{ pct('compra_viagem') }}" placeholder="média de cada compra"></label>
+<label>Créditos de impostos na compra (%)<input name="credito_pct" inputmode="decimal" value="{{ pct('credito_pct') }}" placeholder="0 no Simples Nacional"></label>
+<p class="wide mute pequeno">A % de frete vale quando o fornecedor cobra o frete à parte ou você paga a transportadora. Com veículo próprio, o frete é o custo da viagem dividido pelo valor que ela traz (ex.: R$ 300 numa compra de R$ 10.000 = 3%). Créditos: o ICMS (e PIS/COFINS no Lucro Real) da nota de compra que a empresa aproveita; pergunte ao seu contador.</p>
+<label class="wide">Observações<textarea name="observacoes" rows="2" maxlength="2000">{{ valor('observacoes') }}</textarea></label>
+<label><span><input type="checkbox" name="ativo" {{ 'checked' if (d.get('ativo', 'on') if d is mapping else d.ativo) }}> Ativo (fornecedor inativo não entra no cálculo)</span></label>

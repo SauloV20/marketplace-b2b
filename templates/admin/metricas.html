@@ -1,0 +1,14 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Métricas de visita (Google Analytics)</h1>
+<div class="box"><p>Com o Google Analytics você vê quantas pessoas visitam a loja, de onde vêm (Google, Instagram, WhatsApp...), quais produtos olham, em que etapa desistem e quanto cada canal vende.</p>
+<p><b>Como ligar:</b></p><ol>
+<li>Entre em <b>analytics.google.com</b> com a conta Google da empresa e crie uma propriedade para o site (fuso de São Paulo, moeda Real).</li>
+<li>Em <b>Administrador › Fluxos de dados</b>, crie um fluxo "Web" com o endereço do site. Copie o <b>ID de medição</b> (começa com <code>G-</code>).</li>
+<li>Cole aqui embaixo e salve.</li></ol>
+<p class="mute">A loja mostra um aviso de cookies com "Aceitar" e "Recusar", como pede a LGPD: o Google só é carregado para quem aceita (normalmente boa parte dos visitantes, não todos). São medidas só as páginas da loja: vitrine, produtos, carrinho, finalização e a página do pedido, que envia a compra (número, valor, frete e produtos, sem nome, e-mail ou documento do cliente). A conta do cliente e o painel ficam de fora. A política de privacidade passa a explicar os cookies do Google sozinha.</p></div>
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>ID de medição<input name="ga_id" value="{{ ga_id }}" maxlength="20" placeholder="G-XXXXXXXXXX" autocapitalize="characters"></label>
+<p class="wide mute pequeno">Deixe vazio e salve para desligar (o aviso de cookies some).</p>
+<div class="acts-row wide" style="margin:0"><button class="btn">Salvar</button></div></form>
+{% endblock %}

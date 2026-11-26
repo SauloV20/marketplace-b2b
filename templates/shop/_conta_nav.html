@@ -1,0 +1,12 @@
+<nav class="tabs conta-nav" aria-label="Minha conta">
+<a href="{{ url_for('account.conta') }}" class="{{ 'on' if request.endpoint == 'account.conta' }}">Resumo</a>
+<a href="{{ url_for('account.pedidos') }}" class="{{ 'on' if request.endpoint in ('account.pedidos', 'account.pedido_detalhe') }}">Meus pedidos</a>
+<a href="{{ url_for('account.produtos_comprados') }}" class="{{ 'on' if request.endpoint == 'account.produtos_comprados' }}">Comprar de novo</a>
+<a href="{{ url_for('account.listas_lista') }}" class="{{ 'on' if request.endpoint in ('account.listas_lista', 'account.lista_ver') }}">Minhas listas</a>
+<a href="{{ url_for('account.documentos') }}" class="{{ 'on' if request.endpoint == 'account.documentos' }}">Notas e boletos</a>
+<a href="{{ url_for('account.enderecos') }}" class="{{ 'on' if request.endpoint == 'account.enderecos' }}">Endereços</a>
+<a href="{{ url_for('shop.rapido') }}">Pedido rápido</a>
+{% if cliente.tipo == 'pj' and not membro %}<a href="{{ url_for('account.equipe') }}" class="{{ 'on' if request.endpoint == 'account.equipe' }}">Equipe</a>{% endif %}
+<a href="{{ url_for('account.dados') }}" class="{{ 'on' if request.endpoint == 'account.dados' }}">Meus dados</a>
+<a href="{{ url_for('account.privacidade') }}" class="{{ 'on' if request.endpoint == 'account.privacidade' }}">Privacidade</a>
+<form method="post" action="{{ url_for('account.sair') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link" type="submit">Sair</button></form></nav>

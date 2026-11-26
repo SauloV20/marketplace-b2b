@@ -1,0 +1,41 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<a class="link" href="{{ url_for('admin.clientes') }}">← Clientes</a>
+<h1>{{ c.razao_social if c.tipo == 'pj' and c.razao_social else c.name }}</h1>
+<div class="box"><p>{{ c.name }} · {{ c.email }}{% if not c.email_verified %} <span class="tag off">e-mail não confirmado</span>{% endif %}</p>
+<p>{% if c.documento %}{{ 'CNPJ' if c.tipo == 'pj' else 'CPF' }} {{ fmt_doc(c.documento) }}{% else %}Documento não informado{% endif %}</p>
+<p class="mute">{{ c.phone or 'Telefone não informado' }}{% if c.telefone_verificado %} <span class="tag">celular confirmado</span>{% endif %} · {{ c.address or 'Endereço não informado' }}</p></div>
+{% if c.tipo == 'pj' %}
+{% set r = c.receita %}
+<div class="box"><h3>Receita Federal</h3>
+{% if r %}<p><span class="tag {{ '' if c.receita_situacao == 'ATIVA' else 'off' }}">{{ c.receita_situacao }}</span> {{ r.razao_social }}{% if r.nome_fantasia %} ({{ r.nome_fantasia }}){% endif %}</p>
+<p class="mute">Aberta em {{ r.abertura or '—' }} · {{ r.cnae or 'atividade não informada' }}</p>
+<p class="mute">{{ r.endereco }}</p>
+<p class="mute">Consultado em {{ c.receita_consultado_em|hora_br }}</p>
+{% elif c.receita_situacao %}<p><span class="tag off">{{ c.receita_situacao }}</span></p>
+{% else %}<p><span class="tag off">Não verificado</span> A Receita não respondeu no cadastro. Consulte antes de aprovar.</p>{% endif %}
+<form method="post" action="{{ url_for('admin.cliente_receita', uid=c.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost">Consultar na Receita agora</button></form></div>
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2 class="wide">Condições de empresa</h2>
+<p class="wide mute">Desconto e prazos só valem com a empresa aprovada.{% if c.receita_situacao != 'ATIVA' %} <b>Atenção: o CNPJ não está confirmado como ativo na Receita.</b>{% endif %}</p>
+<label>Razão social<input name="razao_social" value="{{ c.razao_social or '' }}" maxlength="160"></label>
+<label>Inscrição estadual<input name="inscricao_estadual" value="{{ c.inscricao_estadual or '' }}" maxlength="30"></label>
+<label>Desconto sobre a tabela (%)<input name="desconto" inputmode="decimal" value="{{ c.desconto|num }}"></label>
+<label>Prazos de boleto faturado (separe por ;)<input name="prazos" value="{{ c.prazos or '' }}" placeholder="28; 30/60/90"></label>
+<label>Limite de crédito do faturado (R$)<input name="limite_credito" inputmode="decimal" value="{{ c.limite_credito|duas_casas if c.limite_credito is not none else '' }}" placeholder="vazio = sem limite"></label>
+<p class="wide mute">Em aberto no faturado agora: <b>{{ em_aberto|brl }}</b>{% if disponivel is not none %} · disponível: <b>{{ disponivel|brl }}</b>{% endif %}. O limite conta os boletos faturados ainda não pagos; quando você marca o pedido como pago, o valor volta a ficar disponível.</p>
+<label class="wide"><span><input type="checkbox" name="aprovada" {{ 'checked' if c.empresa_aprovada }}> Empresa aprovada (libera desconto e boleto faturado)</span></label>
+<div><button class="btn">Salvar condições</button></div></form>
+{% else %}<p class="mute">Pessoa física: compra com os preços de tabela e as faixas por quantidade.</p>{% endif %}
+<h3 style="margin:24px 0 12px">Últimos pedidos</h3>
+<div class="box" style="overflow-x:auto"><table><tr><th>#</th><th>Data</th><th>Total</th><th>Status</th></tr>
+{% for o in pedidos %}<tr><td>{{ o.id }}</td><td>{{ o.created_at.strftime('%d/%m/%Y') }}</td><td>{{ o.total|brl }}</td><td>{{ o.status }}</td></tr>
+{% else %}<tr><td colspan="4">Nenhum pedido ainda.</td></tr>{% endfor %}</table></div>
+{% if c.membros %}<div class="box"><h3>Equipe da empresa ({{ c.membros|length }})</h3>
+<div style="overflow-x:auto"><table><tr><th>Nome</th><th>E-mail</th><th>Papel</th></tr>
+{% for m in c.membros %}<tr><td>{{ m.name }}</td><td>{{ m.email }}{% if not m.email_verified %} <span class="tag off">convite pendente</span>{% endif %}</td><td>{{ 'Aprovador' if m.papel == 'aprovador' else 'Comprador' }}{% if m.papel == 'comprador' and m.limite_aprovacao is not none %} (aprova acima de {{ m.limite_aprovacao|brl }}){% endif %}</td></tr>{% endfor %}</table></div>
+<p class="mute pequeno">Quem gerencia a equipe é o titular, em Minha conta › Equipe. Excluir o cliente exclui também a equipe.</p></div>{% endif %}
+<div class="box perigo"><h3>Excluir cliente</h3>
+<p class="mute">Apaga a conta de {{ c.razao_social or c.name }} ({{ c.email }}). Os pedidos continuam em Pedidos, com os dados da compra. Não dá para desfazer: para voltar, a pessoa precisa se cadastrar de novo.</p>
+<form method="post" action="{{ url_for('admin.excluir_cliente', uid=c.id) }}" data-confirmar="Excluir definitivamente a conta deste cliente? Isso não pode ser desfeito."><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn perigo">Excluir cliente</button></form></div>
+{% endblock %}

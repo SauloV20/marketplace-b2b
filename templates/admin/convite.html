@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Criar senha do painel · Marketplace B2B{% endblock %}
+{% block body %}
+<form class="login box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><span class="logo">Marketplace B2B</span>
+<h2>Bem-vindo à equipe, {{ u.name.split()[0] }}</h2>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<p class="mute">Crie a senha para entrar no painel com o e-mail <b>{{ u.email }}</b>.</p>
+<label>Senha (mínimo 12 caracteres)<input type="password" name="nova" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+<label>Repita a senha<input type="password" name="nova2" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+<button class="btn">Criar senha</button></form>
+{% endblock %}

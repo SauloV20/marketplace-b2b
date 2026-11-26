@@ -1,0 +1,69 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.notas_lista') }}">← Notas fiscais</a></p>
+<h1>Nota fiscal: configuração</h1>
+<div class="box"><p>Comece em <b>homologação</b> (ambiente de testes da SEFAZ: a nota não tem valor fiscal e sai com o destinatário “SEM VALOR FISCAL”). Emita algumas notas de teste, confira os dados com o seu contador e só então troque para <b>produção</b>.</p>
+<p class="mute">Envio: <b>{{ 'direto na SEFAZ' if provedor == 'sefaz' else 'API de emissão' }}</b>.
+{% if configurado %}Certificado: {% if certificado and certificado[0] %}{{ certificado[0] }} · vence em <b>{{ certificado[1].strftime('%d/%m/%Y') }}</b>{% if (certificado[1].date() - hoje).days < 30 %} <span class="tag off">vence em menos de 30 dias</span>{% endif %}{% else %}<span class="tag off">{{ certificado[1] if certificado else 'não lido' }}</span>{% endif %}
+{% else %}<span class="tag off">{{ falta }}</span>{% endif %}</p>
+{% if sem_ncm %}<p class="msg">{{ sem_ncm }} produto(s) ativo(s) sem NCM. Preencha em Produtos → Editar ou pela planilha (colunas ncm e cest).</p>{% endif %}
+<form method="post" class="acts-row" style="margin:0"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost" name="acao" value="status">Testar comunicação com a SEFAZ</button></form></div>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="empresa">
+<h2>Empresa (emitente)</h2>
+<label>Razão social<input name="razao_social" value="{{ e.razao_social }}" maxlength="60" required></label>
+<label>Nome fantasia<input name="nome_fantasia" value="{{ e.nome_fantasia }}" maxlength="60"></label>
+<label>CNPJ<input name="cnpj" value="{{ e.cnpj }}" inputmode="numeric" required></label>
+<label>Inscrição estadual<input name="ie" value="{{ e.ie }}" required></label>
+<label class="wide">Regime tributário<select name="crt">{% for k, n in crts.items() %}<option value="{{ k }}" {{ 'selected' if e.crt == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>CEP<span class="cep-linha"><input name="cep" value="{{ e.cep }}" inputmode="numeric" required><button type="button" class="btn ghost" data-buscar-cep="{{ url_for('admin.fiscal_cep', cep='00000000') }}">Buscar pelo CEP</button></span></label>
+<label>Rua<input name="logradouro" value="{{ e.logradouro }}" maxlength="60" required></label>
+<label>Número<input name="numero" value="{{ e.numero }}" maxlength="60" required></label>
+<label>Complemento<input name="complemento" value="{{ e.complemento }}" maxlength="60"></label>
+<label>Bairro<input name="bairro" value="{{ e.bairro }}" maxlength="60" required></label>
+<label>Cidade<input name="municipio" value="{{ e.municipio }}" maxlength="60" required></label>
+<label>Código IBGE da cidade<input name="cod_municipio" value="{{ e.cod_municipio }}" inputmode="numeric" maxlength="7" required></label>
+<label>Estado<select name="uf" required><option value="">—</option>{% for uf in ufs %}<option {{ 'selected' if e.uf == uf }}>{{ uf }}</option>{% endfor %}</select></label>
+<label>Telefone<input name="telefone" value="{{ e.telefone }}" inputmode="tel"></label>
+<h2>Emissão</h2>
+<label class="wide">Ambiente<select name="ambiente">{% for k, n in ambientes.items() %}<option value="{{ k }}" {{ 'selected' if e.ambiente == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Série<input name="serie" type="number" min="0" max="889" value="{{ e.serie }}"></label>
+<label>Próximo número em produção<input name="proximo_1" type="number" min="1" value="{{ e.proximo_1 }}"></label>
+<label>Próximo número em homologação<input name="proximo_2" type="number" min="1" value="{{ e.proximo_2 }}"></label>
+<label>Natureza da operação<input name="natureza" value="{{ e.natureza }}" maxlength="60"></label>
+<p class="wide mute pequeno">Se a empresa já emitia nota por outro sistema nesta série, continue a numeração de onde parou (o próximo número depois da última nota emitida).</p>
+<label class="wide">Informações complementares de toda nota<textarea name="info" rows="2" maxlength="2000">{{ e.info }}</textarea></label>
+<label class="wide"><span><input type="checkbox" name="enviar_email" {{ 'checked' if e.enviar_email in ('1', 'on') }}> Enviar a nota (DANFE e XML) por e-mail ao cliente assim que for autorizada em produção</span></label>
+<h2>Responsável técnico pelo sistema <small class="mute">exigido em alguns estados; vazio = a própria empresa</small></h2>
+<label>CNPJ<input name="rt_cnpj" value="{{ e.rt_cnpj }}" inputmode="numeric"></label>
+<label>Contato<input name="rt_contato" value="{{ e.rt_contato }}" maxlength="60"></label>
+<label>E-mail<input name="rt_email" value="{{ e.rt_email }}" maxlength="60"></label>
+<label>Telefone<input name="rt_fone" value="{{ e.rt_fone }}" inputmode="tel"></label>
+<div class="acts wide"><button class="btn" {% if e.ambiente != '1' %}data-confirmar-producao="Trocar para PRODUÇÃO? As próximas notas terão valor fiscal."{% endif %}>Salvar</button></div></form>
+
+<section class="box" id="regras"><h2>Regras fiscais</h2>
+<p class="mute pequeno">Cada produto usa a regra marcada no cadastro dele; sem regra, a <b>padrão</b>. Peça ao contador: CFOP, situação do ICMS (CSOSN no Simples ou CST no regime normal), IPI, PIS e COFINS. Alíquota do ICMS vazia = a do estado de destino na Formação de preço (interna no seu estado; 7% ou 12% nos outros).</p>
+{% if not perfis %}<form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn" name="acao" value="perfil_padrao">Criar a regra padrão para o regime da empresa</button></form>{% endif %}
+</section>
+{% for p in perfis + [none] %}
+<form class="f box regra" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="perfil">{% if p %}<input type="hidden" name="pid" value="{{ p.id }}">{% endif %}
+<h2>{% if p %}{{ p.nome }}{% if p.padrao %} <span class="tag">padrão</span>{% endif %}{% else %}Nova regra fiscal{% endif %}</h2>
+<label>Nome<input name="nome" value="{{ p.nome if p else '' }}" maxlength="60" required placeholder="Ex.: Produtos com ST"></label>
+<label>CFOP no estado<input name="cfop_estadual" value="{{ p.cfop_estadual if p else '5102' }}" inputmode="numeric" maxlength="4"></label>
+<label>CFOP para outro estado<input name="cfop_interestadual" value="{{ p.cfop_interestadual if p else '6102' }}" inputmode="numeric" maxlength="4"></label>
+<label class="wide">Situação do ICMS<select name="icms_situacao">{% for k, n in situacoes.items() %}<option value="{{ k }}" {{ 'selected' if (p.icms_situacao if p else ('00' if e.crt == '3' else '102')) == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Alíquota do ICMS (%)<input name="icms_aliquota" inputmode="decimal" value="{{ p.icms_aliquota|num if p and p.icms_aliquota is not none else '' }}" placeholder="vazio = tabela de estados"></label>
+<label>Crédito do Simples (%, CSOSN 101)<input name="credito_sn" inputmode="decimal" value="{{ p.credito_sn|num if p else '' }}"></label>
+<label>IPI<select name="ipi_cst">{% for k, n in ipi.items() %}<option value="{{ k }}" {{ 'selected' if (p.ipi_cst if p else '') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Alíquota do IPI (%)<input name="ipi_aliquota" inputmode="decimal" value="{{ p.ipi_aliquota|num if p else '' }}"></label>
+<label>PIS<select name="pis_cst">{% for k, n in pis.items() %}<option value="{{ k }}" {{ 'selected' if (p.pis_cst if p else '99') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Alíquota do PIS (%)<input name="pis_aliquota" inputmode="decimal" value="{{ p.pis_aliquota|num if p else '' }}"></label>
+<label>COFINS<select name="cofins_cst">{% for k, n in pis.items() %}<option value="{{ k }}" {{ 'selected' if (p.cofins_cst if p else '99') == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Alíquota da COFINS (%)<input name="cofins_aliquota" inputmode="decimal" value="{{ p.cofins_aliquota|num if p else '' }}"></label>
+<label class="wide">Texto nas informações complementares<input name="info_adicional" value="{{ p.info_adicional if p else '' }}" maxlength="500"></label>
+<label><span><input type="checkbox" name="padrao" {{ 'checked' if p and p.padrao }}> Regra padrão</span></label>
+<div class="acts wide"><button class="btn">{{ 'Salvar' if p else 'Criar regra' }}</button>
+{% if p and not p.padrao %}<button class="btn ghost perigo" name="acao" value="perfil_excluir" formnovalidate data-confirmar="Excluir esta regra fiscal? Os produtos dela passam a usar a padrão.">Excluir</button>{% endif %}</div></form>
+{% endfor %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='fiscal.js') }}"></script>{% endblock %}

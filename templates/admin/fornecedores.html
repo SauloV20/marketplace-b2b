@@ -1,0 +1,20 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Fornecedores</h1>
+<div class="box"><p>Cadastre de quem você compra, <b>como a mercadoria chega</b> e o <b>preço de compra</b> de cada produto. Com isso, a
+<a class="link" href="{{ url_for('admin.formacao_preco') }}">Formação de preço</a> calcula o preço de venda com os impostos de cada estado e o seu markup.</p>
+<p class="mute">O frete da compra entra no custo: se o fornecedor entrega com frete incluso, deixe 0%; se cobra à parte ou você paga a transportadora, informe a % sobre a compra; se você busca com veículo próprio, informe o custo da viagem e quanto cada viagem traz.</p></div>
+
+<div class="box" style="overflow-x:auto"><table>
+<tr><th>Fornecedor</th><th>Estado</th><th>Transporte da compra</th><th>Frete</th><th>Créditos</th><th>Produtos</th><th></th></tr>
+{% for f in fornecedores %}<tr><td><b>{{ f.nome }}</b>{% if f.documento %}<br><small class="mute">{{ fmt_doc(f.documento) }}</small>{% endif %}{% if not f.ativo %} <span class="tag off">inativo</span>{% endif %}</td>
+<td>{{ f.uf or '—' }}</td><td>{{ transportes[f.transporte] }}</td><td>{{ num(frete_pct(f)|round(2)) }}%</td><td>{{ num(f.credito_pct) }}%</td><td>{{ f.precos|length }}</td>
+<td class="acts"><a class="btn ghost" href="{{ url_for('admin.fornecedor', fid=f.id) }}">Abrir</a></td></tr>
+{% else %}<tr><td colspan="7" class="mute">Nenhum fornecedor ainda. Cadastre o primeiro abaixo.</td></tr>{% endfor %}
+</table></div>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Novo fornecedor</h2>
+{% set dados_fornecedor = novo %}{% include "admin/_fornecedor_campos.html" %}
+<div><button class="btn">Cadastrar fornecedor</button></div></form>
+{% endblock %}

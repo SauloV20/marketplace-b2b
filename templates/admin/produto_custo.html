@@ -1,0 +1,82 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p>{% if pode('produtos') %}<a class="link" href="{{ url_for('admin.edit_product', pid=p.id) }}">← Editar produto</a> · {% endif %}<a class="link" href="{{ url_for('admin.formacao_preco') }}">Formação de preço</a></p>
+<h1>Custo e preço: {{ p.name }}</h1>
+
+<section class="box"><h2>Como o preço é formado{% if loja %} <small class="mute">(entrega em {{ loja }}, o estado da loja)</small>{% endif %}</h2>
+{% if calc %}<table class="composicao">
+<tr><td>Compra em {{ calc.fornecedor.nome }}</td><td class="num">{{ calc.compra|brl }}</td></tr>
+{% if calc.ipi %}<tr><td>+ IPI</td><td class="num">{{ calc.ipi|brl }}</td></tr>{% endif %}
+{% if calc.st %}<tr><td>+ ICMS-ST</td><td class="num">{{ calc.st|brl }}</td></tr>{% endif %}
+{% if calc.frete %}<tr><td>+ Frete da compra</td><td class="num">{{ calc.frete|brl }}</td></tr>{% endif %}
+{% for x in calc.percentuais_custo %}{% if x.valor %}<tr><td>+ {{ x.nome }} ({{ num(x.valor) }}% da compra)</td><td class="num">{{ x.reais|brl }}</td></tr>{% endif %}{% endfor %}
+{% if calc.credito %}<tr><td>− Créditos de impostos</td><td class="num">{{ calc.credito|brl }}</td></tr>{% endif %}
+<tr><th>Custo</th><th class="num">{{ calc.total|brl }}</th></tr>
+<tr><td>+ Lucro (markup {{ num(calc.markup) }}% {{ calc.markup_origem }})</td><td class="num">{{ calc.lucro|brl }}</td></tr>
+<tr><td>+ Impostos e despesas da venda ({{ num(calc.venda_pct) }}% do preço)</td><td class="num">{{ calc.impostos|brl }}</td></tr>
+{% for x in calc.percentuais_venda %}{% if x.valor %}<tr><td class="mute pequeno">&nbsp;&nbsp;dos quais {{ x.nome }} ({{ num(x.valor) }}%)</td><td class="num mute pequeno">{{ x.reais|brl }}</td></tr>{% endif %}{% endfor %}
+<tr><th>Preço calculado</th><th class="num">{{ calc.preco|brl }}</th></tr></table>
+<p class="mute pequeno">Margem sobre o preço: {{ num(calc.margem|round(1)) }}%. Preço de tabela agora: <b>{{ p.price|brl }}</b>
+{% if p.preco_auto %}(calculado: muda sozinho quando o custo, o markup ou os impostos mudam).{% elif calc.preco != p.price %}(manual: o calculado seria {{ calc.preco|brl }}; marque “preço calculado” abaixo para usar).{% else %}(manual).{% endif %}</p>
+{% if calc.markup == 0 %}<p class="msg">O markup está em 0%: o preço só cobre o custo e os impostos, sem lucro.</p>{% endif %}
+{% else %}<p class="mute">Inclua pelo menos um fornecedor com o preço de compra para ver o cálculo.</p>{% endif %}
+</section>
+
+<form class="box" method="post" style="overflow-x:auto"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="salvar">
+<h2>Fornecedores deste produto</h2>
+{% if p.custos %}<table class="tabela-campos">
+<tr><th>Usar</th><th>Fornecedor</th><th>Preço de compra (R$)</th><th>IPI %</th><th>ICMS-ST %</th><th>Código no fornecedor</th><th>Custo</th><th></th></tr>
+{% for c in p.custos %}{% set custo = custo_de(c) %}
+<tr><td><input type="radio" name="principal" value="{{ c.id }}" {{ 'checked' if c.principal }} aria-label="Usar este fornecedor no cálculo"></td>
+<td><a class="link" href="{{ url_for('admin.fornecedor', fid=c.fornecedor_id) }}">{{ c.fornecedor.nome }}</a>{% if not c.fornecedor.ativo %} <span class="tag off">inativo</span>{% endif %}{% if fonte and fonte.id == c.id %}<br><span class="tag">usado</span>{% endif %}</td>
+<td><input name="preco_compra_{{ c.id }}" inputmode="decimal" value="{{ num(c.preco_compra) }}" required aria-label="Preço de compra"></td>
+<td><input name="ipi_pct_{{ c.id }}" inputmode="decimal" value="{{ num(c.ipi_pct) }}" aria-label="IPI"></td>
+<td><input name="st_pct_{{ c.id }}" inputmode="decimal" value="{{ num(c.st_pct) }}" aria-label="ICMS-ST"></td>
+<td><input name="codigo_{{ c.id }}" value="{{ c.codigo or '' }}" maxlength="60" aria-label="Código no fornecedor"></td>
+<td class="num">{{ custo.total|brl }}</td>
+<td><button class="btn ghost" form="tirar-{{ c.id }}" data-confirmar="Tirar este fornecedor do produto?">Tirar</button></td></tr>
+{% endfor %}
+<tr><td><input type="radio" name="principal" value="" {{ 'checked' if not p.custos|selectattr('principal')|list }} aria-label="Usar o de menor custo"></td><td colspan="7" class="mute">Usar sempre o de menor custo</td></tr>
+</table>{% else %}<p class="mute">Nenhum fornecedor ainda: inclua abaixo.</p>{% endif %}
+<div class="f-grade" style="margin-top:16px">
+<label>Markup do produto (%)<input name="markup" inputmode="decimal" value="{{ num(p.markup) }}" placeholder="vazio = {{ num(markup[0]) }}% {{ markup[1] if p.markup is none else '' }}"></label>
+<label class="wide"><span><input type="checkbox" name="preco_auto" {{ 'checked' if p.preco_auto }}> <b>Preço calculado</b>: o preço de tabela sai do custo e muda conforme o estado de entrega do cliente</span></label>
+<p class="wide mute pequeno">Sem esta opção, o preço continua o que você digita em Editar produto, igual para todo o Brasil.</p>
+</div>
+<div class="acts-row"><button class="btn">Salvar</button></div></form>
+{% for c in p.custos %}<form id="tirar-{{ c.id }}" method="post" hidden><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="remover"><input type="hidden" name="cid" value="{{ c.id }}"></form>{% endfor %}
+
+{% if livres %}<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="incluir">
+<h2>Incluir fornecedor</h2>
+<label>Fornecedor<select name="fornecedor_id" required>{% for f in livres %}<option value="{{ f.id }}">{{ f.nome }}</option>{% endfor %}</select></label>
+<label>Preço de compra (R$)<input name="preco_compra" inputmode="decimal" required placeholder="12,50"></label>
+<label>IPI %<input name="ipi_pct" inputmode="decimal" placeholder="0"></label>
+<label>ICMS-ST %<input name="st_pct" inputmode="decimal" placeholder="0"></label>
+<label>Código no fornecedor<input name="codigo" maxlength="60"></label>
+<div><button class="btn">Incluir</button></div></form>
+{% elif not p.custos %}<div class="box"><p>Nenhum fornecedor cadastrado. <a class="link" href="{{ url_for('admin.fornecedores') }}">Cadastre o primeiro</a>.</p></div>{% endif %}
+
+<section class="box" id="percentuais" style="overflow-x:auto"><h2>Percentuais deste produto</h2>
+<p class="mute pequeno">Impostos e despesas cadastrados em <a class="link" href="{{ url_for('admin.percentuais') }}">Percentuais</a> que valem para este produto{% if loja_uf %} (entrega em {{ loja_uf }}){% endif %}. Para mudar só aqui, inclua abaixo um percentual com o <b>mesmo nome</b>: ele passa na frente do geral e do da categoria (use 0 para zerar).</p>
+{% if vigentes %}<table><tr><th>Nome</th><th>%</th><th>Base</th><th>De onde vem</th></tr>
+{% for x in vigentes %}<tr><td>{{ x.nome }}</td><td class="num">{{ num(x.valor) }}%</td><td>{{ 'Venda' if x.base == 'venda' else 'Compra' }}</td>
+<td>{% if x.escopo == 'produto' %}<span class="tag">deste produto</span>{% elif x.escopo == 'categoria' %}da categoria{% else %}de todos os produtos{% endif %}{% if x.uf %} · só {{ x.uf }}{% endif %}</td></tr>{% endfor %}
+</table>{% else %}<p class="mute">Nenhum percentual vale para este produto.</p>{% endif %}
+{% if proprios %}<h3 style="margin-top:16px">Cadastrados só neste produto</h3>
+<table><tr><th>Nome</th><th>%</th><th>Base</th><th>Estado</th><th></th></tr>
+{% for x in proprios %}<tr><td>{{ x.nome }}{% if not x.ativo %} <span class="tag off">inativo</span>{% elif x.id not in vigentes_ids and not x.uf %} <span class="tag off">não vale</span>{% endif %}</td><td class="num">{{ num(x.valor) }}%</td><td>{{ 'Venda' if x.base == 'venda' else 'Compra' }}</td><td>{{ x.uf or 'Todos' }}</td>
+<td><a class="btn ghost" href="{{ url_for('admin.percentual', xid=x.id) }}#cadastro">Editar</a> <button class="btn ghost" form="tirar-pct-{{ x.id }}" data-confirmar="Tirar {{ x.nome }} deste produto?">Tirar</button></td></tr>{% endfor %}
+</table>{% for x in proprios %}<form id="tirar-pct-{{ x.id }}" method="post" hidden><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="percentual_remover"><input type="hidden" name="xid" value="{{ x.id }}"></form>{% endfor %}{% endif %}
+<form class="f" method="post" style="margin-top:16px"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="percentual_incluir">
+<label>Nome<input name="nome" maxlength="60" required placeholder="ex.: PIS"></label>
+<label>Percentual (%)<input name="valor" inputmode="decimal" required placeholder="ex.: 0"></label>
+<label>Base<select name="base">{% for k, n in bases.items() %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></label>
+<label>Estado de entrega<select name="uf"><option value="">Todos os estados</option>{% for uf in ufs %}<option>{{ uf }}</option>{% endfor %}</select></label>
+<div><button class="btn">Incluir neste produto</button></div></form></section>
+
+{% if por_estado %}<section class="box" style="overflow-x:auto"><h2>Preço por estado de entrega</h2>
+<p class="mute pequeno">Com o custo de hoje. Para os clientes, o preço calculado segue o estado do CEP de entrega (com faixas, desconto da empresa e promoção aplicados em cima).</p>
+<table><tr><th>Estado</th><th>Impostos e despesas</th><th>Preço</th><th></th></tr>
+{% for e in por_estado %}<tr><td><b>{{ e.uf }}</b>{% if e.uf == loja %} <small class="mute">(loja)</small>{% endif %}</td><td>{{ num(e.venda) }}%</td><td>{{ e.preco|brl if e.preco is not none else '—' }}</td><td>{% if e.propria %}<span class="tag">entrega própria</span>{% endif %}</td></tr>{% endfor %}
+</table></section>{% endif %}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<a class="link" href="{{ url_for('admin.planilhas') }}">← Planilhas</a>
+<h1>Prévia da importação</h1>
+<p class="mute">{{ imp.nome_arquivo }}{% if imp.desativar_ausentes %} · os produtos que não estão na planilha serão desativados{% endif %}</p>
+<div class="kpis">
+<div class="box kpi">Produtos novos<b>{{ novos }}</b></div>
+<div class="box kpi">Produtos atualizados<b>{{ atualizar }}</b></div>
+<div class="box kpi">Linhas com erro<b>{{ erros|length }}</b></div></div>
+{% if erros %}
+<div class="box"><h3>Corrija estas linhas e envie de novo</h3>
+<div style="overflow-x:auto"><table><tr><th>Linha</th><th>Problema</th></tr>
+{% for n, msg in erros[:200] %}<tr><td>{{ n }}</td><td>{{ msg }}</td></tr>{% endfor %}</table></div>
+{% if erros|length > 200 %}<p class="mute">E mais {{ erros|length - 200 }} linha(s) com erro.</p>{% endif %}</div>
+<a class="btn" href="{{ url_for('admin.planilhas') }}">Enviar a planilha corrigida</a>
+{% else %}
+<form method="post" action="{{ url_for('admin.confirmar_planilha', iid=imp.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<button class="btn">Confirmar importação</button> <a class="btn ghost" href="{{ url_for('admin.planilhas') }}">Cancelar</a></form>
+{% endif %}
+{% if alteracoes %}<div class="box"><h3>O que vai mudar{% if alteracoes|length > 100 %} (primeiras 100 linhas){% endif %}</h3>
+<div style="overflow-x:auto"><table><tr><th>Linha</th><th>Produto</th><th>Ação</th><th>Campos</th></tr>
+{% set nomes = {'codigo': 'código', 'name': 'nome', 'categoria': 'categoria', 'price': 'preço', 'stock': 'estoque', 'description': 'descrição', 'image_url': 'imagem', 'qtd_minima': 'mínimo', 'multiplo': 'múltiplo', 'fracionavel': 'fracionável', 'acrescimo_fracionado': 'acréscimo', 'faixas': 'faixas', 'active': 'ativo', 'peso_kg': 'peso', 'altura_cm': 'altura', 'largura_cm': 'largura', 'comprimento_cm': 'comprimento', 'preco_promocional': 'promoção', 'promo_inicio': 'início da promoção', 'promo_fim': 'fim da promoção'} %}
+{% for a in alteracoes[:100] %}<tr><td>{{ a.linha }}</td><td>{{ a.nome }}</td><td><span class="tag {{ '' if a.acao == 'novo' else 'off' }}">{{ 'novo' if a.acao == 'novo' else 'atualizar' }}</span></td>
+<td><small>{% for k in a.dados %}{{ nomes.get(k, k) }}{{ ', ' if not loop.last }}{% endfor %}</small></td></tr>{% endfor %}</table></div></div>{% endif %}
+{% endblock %}

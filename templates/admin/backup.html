@@ -1,0 +1,71 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Backup e espaço</h1>
+<div class="box stack">
+<h3>Baixar backup</h3>
+<p>Gera um arquivo com <b>todos os dados da loja</b>: produtos e fotos, categorias, clientes, pedidos, banners, frete, perguntas da ajuda e configurações.</p>
+<p class="mute">Último backup baixado: <b>{{ ultimo or 'nunca' }}</b>. Baixe toda semana e sempre antes de mexer no banco ou de trocar de plano no Render.</p>
+<p class="msg">O arquivo tem dados pessoais dos clientes, por isso sai <b>protegido por senha</b>: sem ela, ninguém abre (nem nós). Guarde o arquivo e a senha em lugares diferentes.</p>
+<form class="f" method="post" action="{{ url_for('admin.backup_baixar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+{% if auto.senha %}<p class="wide mute">A senha é a mesma do backup semanal (<code>BACKUP_SENHA</code>, nas variáveis do Render).</p>
+{% else %}<label>Crie uma senha para o arquivo (mínimo 10 caracteres)<input type="password" name="senha_arquivo" required minlength="10" autocomplete="new-password"></label>
+<label>Repita a senha<input type="password" name="senha_arquivo2" required minlength="10" autocomplete="new-password"></label>
+<p class="wide mute pequeno">Anote essa senha: ela será pedida para restaurar o backup. Se perder, o arquivo não abre.</p>{% endif %}
+<div class="wide"><button class="btn">Baixar backup agora</button></div></form>
+</div>
+<form class="box stack" method="post" action="{{ url_for('admin.backup_automatico') }}" id="automatico"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h3>Backup semanal por e-mail</h3>
+<p>Toda semana, os dados da loja (pedidos, clientes, produtos, financeiro, estoque e os XMLs das notas fiscais) vão por e-mail, <b>protegidos por senha</b>. Não vão as fotos dos produtos nem os PDFs anexados aos pedidos (para isso, baixe o backup completo acima de vez em quando).</p>
+<p class="mute">Último envio: <b>{{ auto.ultimo|hora_br if auto.ultimo else 'nunca' }}</b>{% if auto.erro %} · <span class="tag off">{{ auto.erro }}</span>{% endif %}</p>
+{% if not auto.senha %}<p class="msg">Para ligar, crie a variável <code>BACKUP_SENHA</code> no Render (uma senha forte, guardada também fora do Render: sem ela, o backup não abre).</p>{% endif %}
+{% if not auto.token %}<p class="mute pequeno">Agendamento pelo GitHub (toda segunda de manhã): crie <code>TAREFAS_TOKEN</code> no Render e, no GitHub, os segredos <code>TAREFAS_TOKEN</code> (o mesmo valor) e <code>SITE_URL</code>. Sem isso, o backup sai quando alguém abre o painel e já passou uma semana.</p>{% endif %}
+<label>Enviar para (até 3 e-mails, separados por vírgula)<input name="backup_email" value="{{ auto.configurado }}" placeholder="{{ auto.para|join(', ') or 'voce@exemplo.com' }}"></label>
+<div class="acts-row" style="margin:0"><button class="btn ghost">Salvar</button>{% if auto.senha %}<button class="btn" name="acao" value="enviar">Salvar e enviar um agora</button>{% endif %}</div>
+</form>
+<div class="box stack" id="espaco">
+<h3>Espaço no banco de dados</h3>
+{% if uso.total is not none %}
+<div class="medidor {{ 'alerta' if uso.pct >= 80 else ('atencao' if uso.pct >= 60 else '') }}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ uso.pct }}" aria-label="Espaço usado no banco"><span style="width:{{ [uso.pct, 100]|min }}%"></span></div>
+<p><b>{{ tamanho(uso.total) }}</b> de {{ tamanho(uso.limite) }} ({{ uso.pct }}%){% if uso.pct >= 80 %} · <b>quase cheio</b>{% endif %}</p>
+{% else %}<p class="mute">Não foi possível medir o tamanho do banco agora.</p>{% endif %}
+<table class="espaco-tabela"><tr><th>O que ocupa</th><th>Quantidade</th><th>Tamanho</th></tr>
+{% for p in uso.partes %}<tr><td>{{ p.nome }}</td><td>{{ p.qtd }}</td><td>{{ tamanho(p.bytes) }}</td></tr>{% endfor %}
+{% if uso.outros is not none %}<tr><td>Produtos, clientes, pedidos e o resto</td><td>—</td><td>{{ tamanho(uso.outros) }}</td></tr>{% endif %}</table>
+{% if uso.tabelas %}<h4>O que mais ocupa no banco</h4>
+<table class="espaco-tabela"><tr><th>Parte</th><th>Tamanho</th></tr>
+{% for p in uso.tabelas %}<tr><td>{{ p.nome }}</td><td>{{ tamanho(p.bytes) }}</td></tr>{% endfor %}</table>{% endif %}
+<p class="mute">Fotos e banners novos já são comprimidos sozinhos ao enviar (uma foto de celular de 4 MB vira uns 200 KB). O limite usado aqui é {{ tamanho(uso.limite) }} (variável LIMITE_BANCO_MB no Render; ajuste se mudar de plano). Acima de 80%, quem recebe o backup ganha um e-mail de aviso.</p>
+{% if a_comprimir %}<form method="post" action="{{ url_for('admin.comprimir_fotos') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="df" value="{{ depois_foto }}"><input type="hidden" name="db" value="{{ depois_banner }}">
+<p>{{ a_comprimir }} foto(s) ou banner(s) enviados antes ainda estão grandes.</p>
+<button class="btn">Comprimir agora{{ ' (próximas 15)' if a_comprimir > 15 }}</button></form>
+<p class="mute pequeno">Faça um backup antes, por segurança. No Postgres, o espaço liberado volta a ser usado pelo banco aos poucos; o número acima pode demorar a cair.</p>
+{% else %}<p class="mute">Nenhuma imagem grande para comprimir.</p>{% endif %}
+</div>
+{% if exemplos.pedidos or exemplos.produtos %}
+<form class="f box perigo" id="exemplos" method="post" action="{{ url_for('admin.limpar_exemplos') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Dados de exemplo</h2>
+<p class="wide">A loja veio com dados de exemplo para teste. Antes de abrir para clientes, tire-os do caminho:</p>
+<ul class="wide">
+{% if exemplos.pedidos %}<li><b>{{ exemplos.pedidos }} pedido(s) de "Cliente demo"</b>: serão <b>apagados</b>. Eles nunca mexeram no estoque, então o estoque não muda. Pedidos de clientes de verdade não entram.</li>{% endif %}
+{% if exemplos.produtos %}<li><b>{{ exemplos.produtos|length }} produto(s) de amostra</b> que ninguém editou (descrição "Produto de exemplo.", sem foto e sem venda de verdade): serão <b>desativados</b>, não apagados. Somem da loja e você pode reativar em Produtos.</li>{% endif %}
+</ul>
+{% if exemplos.produtos %}<details class="wide"><summary>Ver os produtos de amostra</summary><p class="mute pequeno">{{ exemplos.produtos|map(attribute='name')|join(' · ') }}</p></details>
+<label class="wide"><span><input type="checkbox" name="produtos" checked> Desativar também os produtos de amostra</span></label>{% endif %}
+{% if not exemplos.backup_recente %}<p class="wide msg">Primeiro baixe um backup (no topo desta página). Depois do backup, a limpeza fica liberada por 24 horas.</p>
+{% else %}
+<label>Sua senha de administrador<input type="password" name="senha" required autocomplete="current-password"></label>
+<label>Digite LIMPAR para confirmar<input name="confirmacao" required autocomplete="off" placeholder="LIMPAR"></label>
+<div class="wide"><button class="btn perigo" data-confirmar="Apagar os pedidos de exemplo agora? Não dá para desfazer (só restaurando o backup).">Limpar dados de exemplo</button></div>
+{% endif %}
+</form>
+{% endif %}
+<form class="f box perigo" method="post" action="{{ url_for('admin.backup_restaurar') }}" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Restaurar backup</h2>
+<p class="wide"><b>Atenção:</b> isto <b>apaga todos os dados atuais</b> da loja e coloca no lugar os do arquivo. Use se o banco foi perdido ou trocado. Se algo der errado no meio, nada é alterado. Depois de restaurar, você entra de novo com o e-mail e a senha de administrador que valiam na data do backup.</p>
+<label class="wide">Arquivo de backup (.cifrado, .zip do e-mail ou .json.gz antigo)<input type="file" name="arquivo" required></label>
+<label>Sua senha de administrador<input type="password" name="senha" required autocomplete="current-password"></label>
+<label>Senha do backup (a que protege o arquivo; backups antigos .json.gz não têm)<input type="password" name="senha_backup" autocomplete="off"></label>
+<label>Digite RESTAURAR para confirmar<input name="confirmacao" required autocomplete="off" placeholder="RESTAURAR"></label>
+<div class="wide"><button class="btn perigo" data-confirmar="Apagar os dados atuais e restaurar o backup?">Restaurar backup</button></div>
+</form>
+{% endblock %}

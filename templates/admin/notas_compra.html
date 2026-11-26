@@ -1,0 +1,20 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.compras_lista') }}">← Compras</a></p>
+<h1>Notas de compra</h1>
+<div class="box"><p>As NF-e que os fornecedores emitem para o CNPJ da loja{% if cnpj %} ({{ cnpj }}){% endif %}. A busca usa o mesmo certificado da emissão. Primeiro vem um <b>resumo</b>; para baixar o XML com os itens, clique em <b>Dar ciência e baixar</b>. Depois, <b>Lançar em Compras</b> cria a compra pronta para receber (estoque, custo médio e contas a pagar).</p>
+<p class="mute">A SEFAZ só deixa buscar de novo depois de 1 hora quando não há novidade.{% if estado.ultima %} Última busca: {{ estado.ultima|hora_br }}.{% endif %}{% if estado.liberado_em %} Próxima busca a partir de {{ estado.liberado_em|hora_br }}.{% endif %}</p>
+<div class="acts-row" style="margin:0">
+<form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn" name="acao" value="buscar">Buscar notas na SEFAZ</button></form>
+<form method="post" enctype="multipart/form-data" class="cep-form"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Ou envie o XML que o fornecedor mandou<span class="cep-linha"><input type="file" name="arquivo" accept=".xml,application/xml,text/xml" required><button class="btn ghost">Importar XML</button></span></label></form></div></div>
+
+<div class="chips"><a class="chip {{ 'on' if filtro == 'pendentes' }}" href="{{ url_for('admin.notas_compra') }}">A lançar</a><a class="chip {{ 'on' if filtro == 'todas' }}" href="{{ url_for('admin.notas_compra', filtro='todas') }}">Todas</a></div>
+<section class="box" style="overflow-x:auto">
+{% if notas %}<table><tr><th>Fornecedor</th><th>Nota</th><th>Emitida</th><th class="num">Valor</th><th>Situação</th><th></th></tr>
+{% for n in notas %}<tr><td>{{ n.nome_emitente or n.cnpj_emitente }}</td><td>{{ n.numero or '—' }}{% if n.serie is not none %} <small class="mute">série {{ n.serie }}</small>{% endif %}</td>
+<td>{{ n.emitida_em|hora_br if n.emitida_em else '—' }}</td><td class="num">{{ n.valor|brl }}</td>
+<td>{% if n.situacao != 'autorizada' %}<span class="tag off">{{ n.situacao }}</span>{% elif n.compra_id %}<span class="tag">lançada</span>{% elif n.tipo == 'completa' %}<span class="tag">XML pronto</span>{% else %}<span class="tag off">só resumo</span>{% endif %}</td>
+<td><a class="btn ghost" href="{{ url_for('admin.nota_compra', rid=n.id) }}">Abrir</a></td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Nenhuma nota {{ 'para lançar' if filtro == 'pendentes' }}. Clique em Buscar notas na SEFAZ ou importe um XML.</p>{% endif %}</section>
+{% endblock %}

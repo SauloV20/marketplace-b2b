@@ -1,0 +1,31 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.estoque_lista') }}">← Estoque</a>{% if pode('produtos') %} · <a class="link" href="{{ url_for('admin.edit_product', pid=p.id) }}">Editar produto</a>{% endif %}</p>
+<h1>{{ p.name }}</h1>
+<div class="kpis">
+<div class="box kpi">Estoque<b>{{ p.stock }} un</b></div>
+{% if p.estoque_avulso %}<div class="box kpi">Avulsas (fora da embalagem)<b>{{ p.estoque_avulso }} un</b></div>{% endif %}
+<div class="box kpi">Alerta<b>{{ p.estoque_alerta or '—' }}</b></div>
+{% if pode('custos') %}<div class="box kpi">Custo {{ 'médio' if p.custo_medio else 'pela formação' }}<b>{{ custo|brl if custo is not none else '—' }}</b></div>{% endif %}
+</div>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Ajustar estoque</h2>
+<label>Tipo<select name="modo"><option value="entrada">Entrada (soma)</option><option value="saida">Saída (tira)</option><option value="definir">Estoque certo é</option></select></label>
+<label>Quantidade<input name="quantidade" inputmode="numeric" required></label>
+<label>Motivo<select name="motivo">{% for m in motivos %}<option>{{ m }}</option>{% endfor %}</select></label>
+<label>Observação<input name="obs" maxlength="150"></label>
+<p class="wide mute pequeno">Mercadoria que chegou de fornecedor entra pela tela de <b>Compras</b> (recebimento), que também calcula o custo médio.</p>
+<div><button class="btn">Ajustar</button></div></form>
+
+<section class="box" style="overflow-x:auto"><h2>Histórico de movimentos</h2>
+{% if movimentos %}<table><tr><th>Quando</th><th>Movimento</th><th class="num">Quantidade</th><th class="num">Saldo</th>{% if pode('custos') %}<th class="num">Custo</th>{% endif %}<th>Detalhe</th></tr>
+{% for m in movimentos %}<tr><td>{{ m.quando|hora_br }}</td><td>{{ tipos.get(m.tipo, m.tipo) }}</td>
+<td class="num"><b class="{{ 'gratis' if m.quantidade > 0 else '' }}">{{ '%+d'|format(m.quantidade) }}</b></td><td class="num">{{ m.saldo if m.saldo is not none else '—' }}</td>
+{% if pode('custos') %}<td class="num">{{ m.custo_unitario|brl if m.custo_unitario is not none else '' }}</td>{% endif %}
+<td>{% if m.order_id %}{% if pode('pedidos') %}<a class="link" href="{{ url_for('admin.pedido', oid=m.order_id) }}">Pedido #{{ m.order_id }}</a>{% else %}Pedido #{{ m.order_id }}{% endif %}{% endif %}
+{% if m.compra_id %}{% if pode('custos') %}<a class="link" href="{{ url_for('admin.compra', cid=m.compra_id) }}">Compra #{{ m.compra_id }}</a>{% else %}Compra #{{ m.compra_id }}{% endif %}{% endif %}
+{{ m.observacao or '' }}{% if m.autor %} <small class="mute">· {{ m.autor }}</small>{% endif %}</td></tr>{% endfor %}</table>
+<p class="mute pequeno">Mostra os últimos {{ movimentos|length }} movimentos. O histórico começou a ser registrado com o ERP: movimentos anteriores não aparecem.</p>
+{% else %}<p class="mute">Nenhum movimento registrado ainda.</p>{% endif %}</section>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Minhas listas · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Minhas listas de compra</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<p class="mute">Monte listas para as compras que se repetem (ex.: Manutenção mensal, Obra Centro) e mande tudo para o carrinho de uma vez. Para salvar produtos, use “Salvar em uma lista” na página do produto ou “Salvar este carrinho como lista” no carrinho.</p>
+{% if listas %}<div class="listas-grid">
+{% for l in listas %}<a class="box" href="{{ url_for('account.lista_ver', lid=l.id) }}"><b>{{ l.nome }}</b>
+<span class="mute">{{ l.itens|length }} produto(s){% if l.criada_em %} · criada em {{ l.criada_em.strftime('%d/%m/%Y') }}{% endif %}</span>
+<span class="link">Abrir lista →</span></a>{% endfor %}
+</div>{% else %}<p class="empty">Você ainda não tem listas.</p>{% endif %}
+<form class="box f" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h3 class="wide">Nova lista</h3>
+<label>Nome<input name="nome" maxlength="60" required placeholder="Ex.: Manutenção mensal"></label>
+<div><button class="btn">Criar lista</button></div></form>
+</main>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Hoje</h1>
+<p class="mute">O que precisa de atenção agora{{ ', só nas áreas que você vê' if not acesso_total }}.</p>
+{% if quadros %}<div class="hoje-grade">
+{% for q in quadros %}<section class="box hoje {{ q.nivel }}"><h2><a class="link" href="{{ url_for(q.link[0], **q.link[1]) }}">{{ q.titulo }}</a> <span class="tag {{ 'off' if q.nivel == 'alerta' }}">{{ q.n }}</span></h2>
+{% if q.valor %}<p><b>{{ q.valor|brl }}</b></p>{% endif %}
+<ul class="lista-simples">{% for texto, destino in q.itens %}<li><a class="link" href="{{ url_for(destino[0], **destino[1]) }}">{{ texto }}</a></li>{% endfor %}
+{% if q.n > q.itens|length %}<li class="mute">e mais {{ q.n - q.itens|length }}…</li>{% endif %}</ul></section>{% endfor %}
+</div>{% else %}<div class="box"><p>Tudo em dia. Nada pendente nas suas áreas.</p></div>{% endif %}
+{% endblock %}

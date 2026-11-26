@@ -1,0 +1,18 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Clientes</h1>
+<div class="chips" style="margin-bottom:12px">
+{% for k, n in [('', 'Todos'), ('analise', 'Empresas para aprovar'), ('pj', 'Empresas'), ('pf', 'Pessoas físicas')] %}<a class="chip {{ 'on' if filtro == k }}" href="{{ url_for('admin.clientes', f=k or None, q=q or None) }}">{{ n }}</a>{% endfor %}</div>
+<form method="get" style="display:flex;gap:8px;margin-bottom:12px">{% if filtro %}<input type="hidden" name="f" value="{{ filtro }}">{% endif %}
+<input name="q" value="{{ q }}" placeholder="Nome, e-mail, razão social ou CNPJ/CPF (só números)" aria-label="Buscar cliente" style="flex:1"><button class="btn ghost">Buscar</button></form>
+<div class="box" style="overflow-x:auto"><table>
+<tr><th>Cliente</th><th>Documento</th><th>Situação</th><th>Condições</th><th></th></tr>
+{% for c in clientes %}<tr>
+<td>{% if c.tipo == 'pj' %}<b>{{ c.razao_social }}</b><br><small>{{ c.name }} · {{ c.email }}</small>{% else %}{{ c.name }}<br><small>{{ c.email }}</small>{% endif %}</td>
+<td>{% if c.documento %}{{ 'CNPJ' if c.tipo == 'pj' else 'CPF' }} {{ fmt_doc(c.documento) }}{% else %}<span class="tag off">não informado</span>{% endif %}</td>
+<td>{% if c.tipo == 'pj' %}<span class="tag {{ '' if c.empresa_aprovada else 'off' }}">{{ 'Aprovada' if c.empresa_aprovada else 'Em análise' }}</span><br><small class="mute">Receita: {{ c.receita_situacao or 'não verificado' }}</small>{% else %}Pessoa física{% endif %}{% if not c.email_verified %}<br><small class="mute">e-mail não confirmado</small>{% endif %}</td>
+<td><small>{% if c.desconto %}{{ c.desconto|num }}% desc. {% endif %}{% if c.prazos %}prazos {{ c.prazos }}{% endif %}{% if not c.desconto and not c.prazos %}—{% endif %}</small></td>
+<td><a class="btn ghost" href="{{ url_for('admin.cliente', uid=c.id) }}">{{ 'Analisar' if c.tipo == 'pj' and not c.empresa_aprovada else 'Abrir' }}</a></td></tr>
+{% else %}<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

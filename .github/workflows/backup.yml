@@ -1,0 +1,24 @@
+# Backup semanal: toda segunda às 6h (Brasília), pede ao site para mandar o backup por e-mail.
+# Precisa dos segredos do repositório (Settings > Secrets and variables > Actions):
+#   SITE_URL       endereço do site (ex.: https://loja-exemplo.com.br)
+#   TAREFAS_TOKEN  o mesmo valor da variável TAREFAS_TOKEN no Render
+name: Backup semanal
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch: {}
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir o backup ao site
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          TAREFAS_TOKEN: ${{ secrets.TAREFAS_TOKEN }}
+        run: |
+          if [ -z "$SITE_URL" ] || [ -z "$TAREFAS_TOKEN" ]; then
+            echo "Segredos SITE_URL e TAREFAS_TOKEN não configurados: nada a fazer."; exit 0
+          fi
+          # o plano grátis do Render dorme: a primeira chamada acorda o site (pode levar um minuto)
+          curl -fsS --retry 4 --retry-delay 30 --retry-all-errors --max-time 240 -X POST \
+            -H "Authorization: Bearer $TAREFAS_TOKEN" "${SITE_URL%/}/tarefas/backup-semanal"

@@ -1,0 +1,53 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Produtos</h1>
+<p><a class="btn ghost" href="{{ url_for('admin.planilhas') }}">Importar ou exportar por planilha</a></p>
+<details class="box novo-produto" {{ 'open' if aberto }}>
+<summary><span class="btn">+ Cadastrar novo produto</span></summary>
+<form class="f" method="post" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Dados principais</h2>
+<label>Código (SKU, opcional)<input name="codigo" maxlength="40" value="{{ f.get('codigo', '') }}"></label>
+<label>Nome<input name="name" required maxlength="160" value="{{ f.get('name', '') }}"></label>
+<label>Categoria <a href="{{ url_for('admin.categories') }}" style="font-weight:400">+ nova</a><select name="category_id" required>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if (f.get('category_id')|int if f.get('category_id') else cat) == c.id }}>{{ c.name }}</option>{% endfor %}</select></label>
+<label>Preço (R$)<input name="price" inputmode="decimal" required value="{{ f.get('price', '') }}" placeholder="18,90"></label>
+<label>Estoque (unidades)<input name="stock" type="number" min="0" required value="{{ f.get('stock', '0') }}"></label>
+<label>Peso por unidade (kg, para o frete)<input name="peso_kg" inputmode="decimal" value="{{ f.get('peso_kg', '0') }}" placeholder="0,350"></label>
+<label>Altura da embalagem (cm)<input name="altura_cm" inputmode="decimal" value="{{ f.get('altura_cm', '') }}" placeholder="caixa padrão"></label><label>Largura da embalagem (cm)<input name="largura_cm" inputmode="decimal" value="{{ f.get('largura_cm', '') }}" placeholder="caixa padrão"></label><label>Comprimento da embalagem (cm)<input name="comprimento_cm" inputmode="decimal" value="{{ f.get('comprimento_cm', '') }}" placeholder="caixa padrão"></label>
+<label>Avisar quando o estoque chegar a (un, 0 = não avisa)<input name="estoque_alerta" type="number" min="0" value="{{ f.get('estoque_alerta', '0') }}"></label>
+
+<h2>Fotos</h2>
+<label class="wide">Fotos do produto (até 8, PNG, JPG ou WEBP de até 10 MB, comprimidas sozinhas; a primeira é a principal)
+<input type="file" name="fotos" accept="image/png,image/jpeg,image/webp,image/gif" multiple data-previa="previa-novo"></label>
+<div class="wide fotos-previa" id="previa-novo" aria-live="polite"></div>
+<label class="wide">Ou link de uma imagem (opcional)<input name="image_url" type="url" maxlength="500" value="{{ f.get('image_url', '') }}"></label>
+
+<h2>Descrição</h2>
+<label class="wide">Texto da página do produto (medidas, material, aplicação...)<textarea name="description" rows="4">{{ f.get('description', '') }}</textarea></label>
+
+<h2>Atacado</h2>
+<label>Quantidade mínima por pedido<input name="qtd_minima" type="number" min="1" value="{{ f.get('qtd_minima', '1') }}"></label>
+<label>Vende em múltiplos de (embalagem)<input name="multiplo" type="number" min="1" value="{{ f.get('multiplo', '1') }}"></label>
+<label class="wide">Preço por quantidade (opcional, uma faixa por linha: a partir de quantas unidades = preço de cada)
+<textarea name="faixas" rows="3" placeholder="10 = 16,50&#10;50 = 14,90">{{ f.get('faixas', '') }}</textarea></label>
+<label class="wide"><span><input type="checkbox" name="fracionavel" {{ 'checked' if f.get('fracionavel') }}> Permitir vender fora da embalagem (fracionar)</span></label>
+<label>Acréscimo na unidade fracionada (%)<input name="acrescimo_fracionado" inputmode="decimal" value="{{ f.get('acrescimo_fracionado', '0') }}"></label>
+<input type="hidden" name="estoque_avulso" value="0">
+<div class="wide"><button class="btn destaque">Cadastrar produto</button></div>
+</form></details>
+{% if fotos_de_fora %}<div class="msg" style="margin-top:20px">{% if so_link %}Estes {{ fotos_de_fora }} produto(s) usam foto de <b>outro site</b>: ela pode sumir a qualquer momento (o produto fica sem foto) e usar foto de outra loja pode dar problema de direitos. Em cada um, clique em <b>Editar</b>, envie a sua foto em “Fotos” e apague o link em “URL da imagem”.
+{% else %}<b>{{ fotos_de_fora }} produto(s)</b> usam foto de outro site, que pode sumir a qualquer momento. <a class="link" href="{{ url_for('admin.products', foto='link') }}">Ver quais e trocar</a>{% endif %}</div>{% endif %}
+<div class="chips" style="margin:20px 0 12px"><a class="chip {{ 'on' if not cat and not so_link }}" href="{{ url_for('admin.products', q=q or None) }}">Todas ({{ total }})</a>{% if fotos_de_fora %}<a class="chip {{ 'on' if so_link }}" href="{{ url_for('admin.products', foto='link') }}">Foto de outro site ({{ fotos_de_fora }})</a>{% endif %}
+{% for c in categories %}<a class="chip {{ 'on' if cat == c.id }}" href="{{ url_for('admin.products', cat=c.id, q=q or None) }}">{{ c.name }} ({{ contagem.get(c.id, 0) }})</a>{% endfor %}</div>
+<form method="get" style="display:flex;gap:8px;margin-bottom:12px">{% if cat %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+<input name="q" value="{{ q }}" placeholder="Buscar produto pelo nome" aria-label="Buscar produto" style="flex:1"><button class="btn ghost">Buscar</button>
+{% if q %}<a class="btn ghost" href="{{ url_for('admin.products', cat=cat) }}">Limpar</a>{% endif %}</form>
+<div class="box" style="overflow-x:auto"><table>
+<tr><th>Produto</th><th>Categoria</th><th>Preço</th><th>Atacado</th><th>Estoque</th><th>Status</th><th></th></tr>
+{% for p in products %}<tr><td>{{ p.name }}{% if p.codigo %}<br><small class="mute">{{ p.codigo }}</small>{% endif %}{% if p.image_url %}<br><small class="tag off">{{ 'foto de outro site' if not p.fotos else 'tem foto e também link de fora' }}</small>{% endif %}</td><td>{{ p.category.name }}</td><td>{{ p.price|brl }}{% if p.preco_auto %} <small class="tag">calculado</small>{% endif %}{% if p.preco_promocional %}<br><small class="{{ 'gratis' if promo(p) else 'mute' }}">promo {{ p.preco_promocional|brl }}{% if p.promo_fim %} até {{ p.promo_fim.strftime('%d/%m') }}{% endif %}{{ '' if promo(p) else ' (fora do período)' }}</small>{% endif %}</td>
+<td><small>{% if p.qtd_minima > 1 %}mín. {{ p.qtd_minima }} {% endif %}{% if p.multiplo > 1 %}× {{ p.multiplo }} {% endif %}{% if p.faixas %}{{ p.faixas|length }} faixa(s) {% endif %}{% if p.fracionavel %}fraciona{% if p.acrescimo_fracionado %} +{{ p.acrescimo_fracionado|num }}%{% endif %}{% endif %}{% if p.qtd_minima == 1 and p.multiplo == 1 and not p.faixas %}—{% endif %}</small></td><td>{{ p.stock }}{% if p.estoque_avulso %}<br><small class="mute">{{ p.estoque_avulso }} avulsa(s)</small>{% endif %}</td>
+<td><span class="tag {{ '' if p.active else 'off' }}">{{ 'Ativo' if p.active else 'Inativo' }}</span></td>
+<td class="acts"><a class="btn ghost" href="{{ url_for('admin.edit_product', pid=p.id) }}">Editar</a> {% if pode('custos') %}<a class="btn ghost" href="{{ url_for('admin.produto_custo', pid=p.id) }}">Custo</a> {% endif %}<form method="post" style="display:inline" action="{{ url_for('admin.toggle', pid=p.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost">{{ 'Desativar' if p.active else 'Ativar' }}</button></form></td></tr>
+{% else %}<tr><td colspan="7" style="color:var(--mute)">Nenhum produto encontrado neste filtro.</td></tr>
+{% endfor %}</table></div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin-fotos.js') }}"></script>{% endblock %}

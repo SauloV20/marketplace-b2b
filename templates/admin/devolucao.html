@@ -1,0 +1,35 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<a class="link" href="{{ url_for('admin.devolucoes_lista') }}">← Devoluções e trocas</a>
+<h1>{{ tipos[d.tipo] }} #{{ d.id }} <small class="mute">pedido <a class="link" href="{{ url_for('admin.pedido', oid=o.id) }}">#{{ o.id }}</a></small></h1>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<div class="box"><p><span class="tag {{ 'off' if d.status in ('solicitada', 'recusada') }}">{{ status[d.status] }}</span> · pedida por <b>{{ d.pedido_por }}</b> em {{ d.criado_em|hora_br }}</p>
+<p>Cliente: {{ o.razao_social or o.customer_name }} · {{ o.customer_email }} · {{ o.customer_phone }}</p>
+<h3>Itens</h3>{% for i in itens %}<div class="sum-row"><span>{{ i.qtd }}× {{ i.nome }}</span><b>{{ (i.preco|float * i.qtd)|brl }}</b></div>{% endfor %}
+<h3>Motivo</h3><p>{{ d.motivo }}</p>
+{% if d.resposta %}<h3>{{ 'Motivo da recusa' if d.status == 'recusada' else 'Instruções enviadas' }}</h3><p>{{ d.resposta }}</p>{% endif %}
+{% if d.estoque_devolvido %}<p class="mute">Os produtos voltaram ao estoque.</p>{% endif %}
+{% if d.status == 'concluida' and d.tipo == 'devolucao' %}<p>Reembolso: <b>{{ (d.valor or 0)|brl }}</b>{% if d.reembolso_forma %} · {{ formas.get(d.reembolso_forma, d.reembolso_forma) }}{% endif %}</p>{% endif %}
+<p class="mute">Pago no pedido: {{ o.total|brl }} ({{ metodos.get(o.payment_method, o.payment_method) }}){% if reembolsado %} · já reembolsado: {{ reembolsado|brl }}{% endif %}</p></div>
+
+{% if d.status == 'solicitada' %}<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Responder</h2>
+<label class="wide">Instruções para o cliente (aprovar) ou motivo (recusar)<textarea name="resposta" rows="3" maxlength="500" placeholder="Ex.: envie pelos Correios para Rua X, 100, com a nota fiscal. O frete de volta é por nossa conta."></textarea></label>
+<div class="acts-row wide" style="margin:0"><button class="btn" name="acao" value="aprovar">Aprovar</button><button class="btn ghost perigo" name="acao" value="recusar" data-confirmar="Recusar? O cliente recebe o motivo por e-mail.">Recusar</button></div></form>{% endif %}
+
+{% if d.status == 'aprovada' %}<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Produtos recebidos</h2>
+<label class="wide"><span><input type="checkbox" name="estoque" checked> Devolver ao estoque (desmarque se chegaram com defeito ou avariados)</span></label>
+<div class="acts-row wide" style="margin:0"><button class="btn" name="acao" value="receber">Marcar como recebidos</button></div></form>{% endif %}
+
+{% if d.status in ('aprovada', 'recebida') %}<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Concluir</h2>
+{% if d.tipo == 'devolucao' %}
+<label>Valor do reembolso (R$)<input name="valor" inputmode="decimal" value="{{ sugestao|duas_casas }}" required></label>
+<label>Como foi devolvido<select name="forma">{% for k, v in formas.items() %}{% if k != 'cartao' or cartao %}<option value="{{ k }}" {{ 'selected' if (k == 'cartao' and cartao) or (k == 'pix' and not cartao) }}>{{ v }}</option>{% endif %}{% endfor %}</select></label>
+<p class="wide mute pequeno">Sugestão: o valor dos itens, com o desconto do cupom rateado (o frete não entra). {% if cartao %}"Estorno no cartão pela Efí" devolve o valor direto no cartão do cliente (parcial em até 90 dias, total em até 360 dias; um estorno parcial por dia).{% else %}Faça a devolução do valor (Pix ou transferência) e registre aqui: entra no Financeiro como conta paga.{% endif %} {% if o.status == 'pendente' %}<b>O pedido ainda não foi pago:</b> deixe 0 e ajuste as parcelas a receber no Financeiro.{% endif %}</p>
+{% else %}<p class="wide">Envie os produtos novos ao cliente (pode registrar o envio como um pedido novo, se quiser) e conclua aqui.</p>{% endif %}
+<div class="acts-row wide" style="margin:0"><button class="btn" name="acao" value="concluir" data-confirmar="Concluir? O cliente recebe o aviso por e-mail.">Concluir</button>
+{% if d.status == 'aprovada' or not d.estoque_devolvido %}<button class="btn ghost perigo" name="acao" value="recusar" formnovalidate data-confirmar="Recusar?">Recusar</button>{% endif %}</div>
+{% if d.status == 'aprovada' or not d.estoque_devolvido %}<label class="wide">Motivo, se for recusar<textarea name="resposta" rows="2" maxlength="500"></textarea></label>{% endif %}</form>{% endif %}
+{% endblock %}

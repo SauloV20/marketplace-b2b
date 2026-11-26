@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }} · Marketplace B2B{% endblock %}
+{% block head %}<meta name="description" content="{{ (p.description if p.description and p.description != 'Produto de exemplo.' else p.name ~ ' com preço de atacado no Marketplace B2B.')|truncate(155) }}">
+<link rel="canonical" href="{{ canonico }}">
+<meta property="og:title" content="{{ p.name }}">{% if foto_og %}<meta property="og:image" content="{{ foto_og }}">{% endif %}
+<meta property="og:type" content="product">
+{% set dados = {"@context": "https://schema.org", "@type": "Product", "name": p.name, "category": p.category.name, "url": canonico, "brand": {"@type": "Brand", "name": "Marketplace B2B"}} %}
+{% if p.codigo %}{% set _ = dados.update({"sku": p.codigo}) %}{% endif %}
+{% if foto_og %}{% set _ = dados.update({"image": foto_og}) %}{% endif %}
+{% if p.description and p.description != 'Produto de exemplo.' %}{% set _ = dados.update({"description": p.description|truncate(500)}) %}{% endif %}
+{% if total_notas %}{% set _ = dados.update({"aggregateRating": {"@type": "AggregateRating", "ratingValue": nota_media, "reviewCount": total_notas, "bestRating": 5, "worstRating": 1}}) %}{% endif %}
+<script type="application/ld+json">{{ dados|tojson }}</script>{% endblock %}
+{% block body %}
+{% from "shop/_icones.html" import icon as icone %}{% macro icon(name) %}{{ icone(name, 1.4) }}{% endmacro %}
+{% include "shop/_header.html" %}
+<main class="wrap page-produto">
+<nav class="trilha" aria-label="Você está em"><a href="/">Início</a> › <a href="/?cat={{ p.category_id }}">{{ p.category.name }}</a> › <span>{{ p.name }}</span></nav>
+<div class="produto">
+<section class="galeria" aria-label="Fotos do produto">
+<div class="foto-grande">{% if lista_fotos %}<img id="foto-grande" src="{{ lista_fotos[0] }}" alt="{{ p.name }}">{% else %}{{ icon(p.category.name) }}{% endif %}
+<span class="selos">{% if em_oferta(p) %}<span class="selo oferta">Oferta</span>{% endif %}{% if p.faixas %}<span class="selo atacado">Atacado</span>{% endif %}{% if p.fracionavel %}<span class="selo">Fraciona</span>{% endif %}</span></div>
+{% if lista_fotos|length > 1 %}<div class="miniaturas">{% for f in lista_fotos %}<button type="button" data-foto="{{ f }}" aria-label="Ver foto {{ loop.index }}" {{ 'aria-current=true' if loop.first }}><img src="{{ f }}" alt="" loading="lazy"></button>{% endfor %}</div>{% endif %}
+</section>
+
+<section class="compra box">
+<span class="cat">{{ p.category.name }}{% if p.codigo %} · Cód. {{ p.codigo }}{% endif %}</span>
+<h1>{{ p.name }}</h1>
+{% if cliente_logado %}
+{% set de = tabela_no_estado(p) %}<div class="price grande">{% if preco < de %}<s class="de">{{ de|brl }}</s> {% endif %}{{ preco|brl }}<small> /un</small></div>
+{% if em_oferta(p) %}<p class="oferta-ate">Oferta{% if p.promo_fim %} até {{ p.promo_fim.strftime('%d/%m/%Y') }}{% endif %}: {{ p.preco_promocional|brl }} por unidade (vale o menor entre este e o seu preço).</p>{% endif %}
+{% if empresa and cliente_logado.desconto %}<p class="tier"><b>Preço com {{ cliente_logado.desconto|num }}% de desconto da sua empresa</b></p>{% endif %}
+{% if tabela|length > 1 %}<table class="faixas"><caption>Preço por quantidade</caption>
+<tr><th>Quantidade</th><th>Preço por unidade</th><th></th></tr>
+{% for de, ate, valor, off in tabela %}<tr><td>{{ de }}{% if ate %} a {{ ate }}{% else %} ou mais{% endif %} un</td><td><b>{{ valor|brl }}</b></td><td>{% if off > 0 %}<span class="off">{{ off }}% OFF</span>{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+<ul class="regras">
+{% if p.qtd_minima > 1 %}<li>Pedido mínimo: <b>{{ p.qtd_minima }} un</b></li>{% endif %}
+{% if p.multiplo > 1 %}{% if p.fracionavel %}<li>Embalagem com <b>{{ p.multiplo }} un</b>. Também vende avulso{% if p.acrescimo_fracionado %} (+{{ p.acrescimo_fracionado|num }}% por unidade fora da embalagem){% endif %}.</li>
+{% else %}<li>Vendido em múltiplos de <b>{{ p.multiplo }} un</b></li>{% endif %}{% endif %}
+<li>{% if pode %}<span class="disp">Disponível</span>{% else %}<span class="tag off">Indisponível no momento</span>{% endif %}</li>
+</ul>
+{% if pode %}<form class="add-form" data-add-form="{{ p.id }}"><label>Quantidade<input type="number" name="qty" min="{{ minimo }}" step="{{ passo }}" value="{{ minimo }}" inputmode="numeric" required></label>
+<button class="btn destaque">Adicionar ao carrinho</button></form>
+<p class="mute pequeno">Precisa de outro preço ou prazo? Adicione ao carrinho e escolha <b>Orçamento</b> na finalização.</p>
+{% else %}<form method="post" action="{{ url_for('shop.avise_me_alternar', pid=p.id) }}" class="avise-me"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+{% if aviso_ativo %}<p><b>Você será avisado</b> por e-mail quando chegar.</p><button class="btn ghost">Cancelar aviso</button>
+{% else %}<p>Sem estoque agora. Quer saber quando chegar?</p><button class="btn destaque">Avise-me quando chegar</button>{% endif %}</form>{% endif %}
+<details class="salvar-lista"><summary>Salvar em uma lista de compras</summary>
+<form method="post" action="{{ url_for('account.lista_adicionar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="pid" value="{{ p.id }}">
+<label>Lista<select name="lista" data-lista-escolha>{% for l in listas_cliente %}<option value="{{ l.id }}">{{ l.nome }}</option>{% endfor %}<option value="nova" {{ 'selected' if not listas_cliente }}>+ Nova lista</option></select></label>
+<label data-lista-nova>Nome da nova lista<input name="nome_lista" maxlength="60" placeholder="Ex.: Manutenção mensal"></label>
+<label>Quantidade<input name="qtd" type="number" min="1" value="{{ minimo }}" inputmode="numeric"></label>
+<button class="btn ghost">Salvar na lista</button></form>
+<a class="link pequeno" href="{{ url_for('account.listas_lista') }}">Ver minhas listas</a></details>
+{% else %}
+<div class="cadeado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+<div><b>Entre para ver o preço</b><span>Preço de atacado para empresas e consumidores cadastrados.</span></div></div>
+<p class="botoes"><a class="btn destaque" href="{{ url_for('account.entrar') }}">Entrar</a> <a class="btn ghost" href="{{ url_for('account.cadastro') }}">Criar conta</a></p>
+{% endif %}
+</section>
+</div>
+
+{% if p.description and p.description != 'Produto de exemplo.' %}<section class="box descricao"><h2>Descrição</h2>{% for par in p.description.split('\n') if par.strip() %}<p>{{ par }}</p>{% endfor %}</section>{% endif %}
+
+<section class="box avaliacoes" id="avaliacoes"><h2>Avaliações{% if total_notas %} <small class="estrelas" aria-label="Nota {{ nota_media }} de 5">{{ '★' * (nota_media|round|int) }}{{ '☆' * (5 - nota_media|round|int) }}</small> <small class="mute">{{ nota_media|uma_casa }} de 5 · {{ total_notas }} avaliação(ões)</small>{% endif %}</h2>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% for a in avaliacoes %}<article class="avaliacao"><p><span class="estrelas" aria-label="Nota {{ a.nota }} de 5">{{ '★' * a.nota }}{{ '☆' * (5 - a.nota) }}</span> <b>{{ a.nome }}</b> <small class="mute">{{ a.criado_em|dia_br }} · comprou no Marketplace B2B</small></p>
+{% for par in a.comentario.split('\n') if par.strip() %}<p>{{ par }}</p>{% endfor %}
+{% if a.resposta %}<p class="resposta-loja"><b>Resposta do Marketplace B2B:</b> {{ a.resposta }}</p>{% endif %}</article>{% else %}<p class="mute">Este produto ainda não tem avaliações.</p>{% endfor %}
+{% if pode_avaliar %}<details class="avaliar"{% if minha_avaliacao is none %} open{% endif %}><summary><b>{{ 'Editar sua avaliação' if minha_avaliacao else 'Avaliar este produto' }}</b>{% if minha_avaliacao %} <small class="mute">{{ {'pendente': 'aguardando aprovação', 'aprovada': 'publicada', 'recusada': 'não publicada'}[minha_avaliacao.status] }}</small>{% endif %}</summary>
+<form method="post" action="{{ url_for('shop.avaliar', pid=p.id) }}" class="stack"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Nota<select name="nota" required>{% for n, t in [(5, 'Excelente'), (4, 'Muito bom'), (3, 'Bom'), (2, 'Ruim'), (1, 'Muito ruim')] %}<option value="{{ n }}" {{ 'selected' if minha_avaliacao and minha_avaliacao.nota == n }}>{{ '★' * n }} {{ t }}</option>{% endfor %}</select></label>
+<label>Comentário (opcional)<textarea name="comentario" rows="3" maxlength="1000" placeholder="Conte como foi usar o produto">{{ minha_avaliacao.comentario if minha_avaliacao else '' }}</textarea></label>
+<p class="mute pequeno">Aparece com o seu primeiro nome e a inicial do sobrenome, depois de aprovada pelo Marketplace B2B.</p>
+<button class="btn">Enviar avaliação</button></form></details>{% endif %}</section>
+{% if relacionados %}<section><div class="titulo-lista"><h2>Veja também em {{ p.category.name }}</h2></div>
+<div class="grid">{% for r in relacionados %}
+<a class="card" href="{{ link_produto(r) }}"><span class="thumb">{% set f = foto_produto(r) %}{% if f %}<img src="{{ f }}" alt="{{ r.name }}" loading="lazy">{% else %}{{ icon(r.category.name) }}{% endif %}</span>
+<span class="b"><span class="cat">{{ r.category.name }}</span><h3>{{ r.name }}</h3>{% if cliente_logado %}<span class="price">{{ precos_rel[r.id]|brl }}<small> /un</small></span>{% else %}<span class="login-price">Entre para ver o preço</span>{% endif %}</span></a>
+{% endfor %}</div></section>{% endif %}
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='shop.js') }}"></script>
+<script src="{{ url_for('static', filename='produto.js') }}"></script>{% endblock %}

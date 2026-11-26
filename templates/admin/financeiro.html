@@ -1,0 +1,70 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Financeiro</h1>
+<div class="kpis">
+<div class="box kpi">A receber em aberto<b>{{ resumo.receber.aberto|brl }}</b><small class="mute">vencido: {{ resumo.receber.vencido|brl }} · próximos 7 dias: {{ resumo.receber.semana|brl }}</small></div>
+<div class="box kpi">A pagar em aberto<b>{{ resumo.pagar.aberto|brl }}</b><small class="mute">vencido: {{ resumo.pagar.vencido|brl }} · próximos 7 dias: {{ resumo.pagar.semana|brl }}</small></div>
+</div>
+<div class="box"><p>As <b>contas a receber</b> dos pedidos são criadas sozinhas: no boleto faturado, uma parcela por prazo (contando da data do pedido); nas outras formas, uma só. Pedido marcado como pago baixa as parcelas; cancelado ou excluído, apaga as que estavam em aberto. Ao receber a última parcela aqui, o pedido passa para <b>pago</b>.
+As <b>contas a pagar</b> das compras entram ao receber a mercadoria em <a class="link" href="{{ url_for('admin.compras_lista') if pode('custos') else '#' }}">Compras</a>; as outras despesas você lança abaixo. Veja o dia a dia no <a class="link" href="{{ url_for('admin.fluxo_caixa') }}">Fluxo de caixa</a>.</p></div>
+
+<div class="chips"><a class="chip {{ 'on' if tipo == 'receber' }}" href="{{ url_for('admin.financeiro_pagina', tipo='receber', situacao=situacao) }}">A receber</a>
+<a class="chip {{ 'on' if tipo == 'pagar' }}" href="{{ url_for('admin.financeiro_pagina', tipo='pagar', situacao=situacao) }}">A pagar</a>
+<span class="mute" style="align-self:center">·</span>
+{% for k, n in (('abertas', 'Em aberto'), ('vencidas', 'Vencidas'), ('pagas', 'Pagas' if tipo == 'pagar' else 'Recebidas')) %}<a class="chip {{ 'on' if situacao == k }}" href="{{ url_for('admin.financeiro_pagina', tipo=tipo, situacao=k) }}">{{ n }}</a>{% endfor %}</div>
+{% if situacao == 'pagas' %}<form method="get" class="busca-pedidos box"><input type="hidden" name="tipo" value="{{ tipo }}"><input type="hidden" name="situacao" value="pagas">
+<label>De<input type="date" name="de" value="{{ de.isoformat() }}"></label><label>Até<input type="date" name="ate" value="{{ ate.isoformat() }}"></label><button class="btn ghost">Ver</button></form>{% endif %}
+
+<section class="box" style="overflow-x:auto">
+{% if lista %}<table><tr><th>Vencimento</th><th>Conta</th><th>Categoria</th><th class="num">Valor</th><th>{{ 'Pago em' if situacao == 'pagas' else 'Situação' }}</th><th></th></tr>
+{% for l in lista %}{% set atraso = (hoje - l.vencimento).days %}
+<tr><td>{{ l.vencimento.strftime('%d/%m/%Y') }}</td>
+<td>{% if l.order_id and pode('pedidos') %}<a class="link" href="{{ url_for('admin.pedido', oid=l.order_id) }}">{{ descricao(l) }}</a>{% elif l.compra_id and pode('custos') %}<a class="link" href="{{ url_for('admin.compra', cid=l.compra_id) }}">{{ descricao(l) }}</a>{% else %}{{ descricao(l) }}{% endif %}
+{% if l.parcela %} <small class="mute">parcela {{ l.parcela }}</small>{% endif %}{% if l.boleto_id %} <a class="link pequeno" href="{{ l.boleto_link }}" target="_blank" rel="noopener">boleto</a>{% endif %}{% if l.forma %} <small class="mute">· {{ formas.get(l.forma, l.forma) }}</small>{% endif %}{% if l.observacao %}<br><small class="mute">{{ l.observacao }}</small>{% endif %}</td>
+<td>{{ l.categoria }}</td><td class="num">{{ l.valor|brl }}{% if l.valor_pago is not none and l.valor_pago != l.valor %}<br><small class="mute">pago {{ l.valor_pago|brl }}</small>{% endif %}</td>
+<td>{% if l.pago_em %}{{ l.pago_em.strftime('%d/%m/%Y') }}{% elif atraso > 0 %}<span class="tag off">vencida há {{ atraso }} dia(s)</span>{% elif atraso == 0 %}<span class="tag">vence hoje</span>{% else %}em aberto{% endif %}</td>
+<td class="acts">{% if l.pago_em %}<form method="post" action="{{ url_for('admin.lancamento', lid=l.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="situacao" value="{{ situacao }}"><button class="btn ghost" name="acao" value="estornar" data-confirmar="Desfazer esta baixa? A conta volta para em aberto.">Desfazer baixa</button></form>
+{% else %}<details class="baixa"><summary class="btn ghost">{{ 'Receber' if l.tipo == 'receber' else 'Pagar' }}</summary>
+<form method="post" action="{{ url_for('admin.lancamento', lid=l.id) }}" class="f-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="situacao" value="{{ situacao }}">
+<label>Data<input type="date" name="pago_em" value="{{ hoje.isoformat() }}"></label>
+<label>Valor (R$)<input name="valor_pago" inputmode="decimal" value="{{ l.valor|duas_casas }}"></label>
+<label>Forma<select name="forma"><option value="">—</option>{% for k, n in formas.items() %}<option value="{{ k }}" {{ 'selected' if k == l.forma }}>{{ n }}</option>{% endfor %}</select></label>
+<div><button class="btn" name="acao" value="baixar">Confirmar</button></div>
+{% if l.order_id and l.tipo == 'receber' and boleto.ligado %}<div class="acts-row" style="margin:0">{% if l.boleto_id %}<button class="btn ghost" name="acao" value="boleto_consultar" formnovalidate>Consultar boleto na Efí</button>{% else %}<button class="btn ghost" name="acao" value="boleto" formnovalidate>Gerar boleto Efí</button>{% endif %}</div>{% endif %}</form>
+<form method="post" action="{{ url_for('admin.lancamento', lid=l.id) }}" class="f-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="situacao" value="{{ situacao }}">
+<label>Novo vencimento<input type="date" name="vencimento" value="{{ l.vencimento.isoformat() }}"></label>
+{% if not l.order_id %}<label>Valor (R$)<input name="valor" inputmode="decimal" value="{{ l.valor|duas_casas }}"></label>{% endif %}
+<div class="acts-row" style="margin:0"><button class="btn ghost" name="acao" value="editar">Alterar</button>
+{% if not l.order_id %}<button class="btn ghost perigo" name="acao" value="excluir" data-confirmar="Excluir esta conta?">Excluir</button>{% endif %}</div></form></details>{% endif %}</td></tr>
+{% endfor %}</table>
+{% else %}<p class="mute">Nenhuma conta {{ 'a receber' if tipo == 'receber' else 'a pagar' }} nesta situação.</p>{% endif %}
+</section>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Lançar conta</h2>
+<label>Tipo<select name="tipo"><option value="pagar" {{ 'selected' if tipo == 'pagar' }}>A pagar (despesa)</option><option value="receber" {{ 'selected' if tipo == 'receber' }}>A receber</option></select></label>
+<label>Descrição<input name="descricao" maxlength="160" required placeholder="Ex.: Aluguel do galpão"></label>
+<label>Categoria<select name="categoria">{% for c in categorias.pagar %}<option>{{ c }}</option>{% endfor %}</select></label>
+<label>Valor (R$)<input name="valor" inputmode="decimal" required placeholder="1.500,00"></label>
+<label>Vencimento<input type="date" name="vencimento" required value="{{ hoje.isoformat() }}"></label>
+<label>Repetir todo mês (vezes)<input name="repetir" type="number" min="1" max="60" value="1"></label>
+<label class="wide">Observação<input name="observacao" maxlength="300"></label>
+<label><span><input type="checkbox" name="pago"> Já está paga (a primeira)</span></label>
+<div><button class="btn">Lançar</button></div></form>
+
+{% if tipo == 'receber' %}<form class="f box" method="post" id="boletos"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="boletos_config">
+<h2>Boleto registrado e cartão (Efí)</h2>
+{% if boleto.ligado %}<p class="wide mute pequeno">Cada parcela a receber vira um boleto. Quando o cliente paga, a Efí avisa o site e a parcela é baixada sozinha (a última quita o pedido). A Efí cobra uma tarifa por boleto pago.</p>
+{% else %}<p class="wide msg">Desligado: preencha <code>EFI_CLIENT_ID</code> e <code>EFI_CLIENT_SECRET</code> no Render (as mesmas do Pix) e libere a API de Cobranças na aplicação da Efí.</p>{% endif %}
+<label>Multa por atraso (%)<input name="boleto_multa" inputmode="decimal" value="{{ boleto.multa|num }}"></label>
+<label>Juros ao mês (%)<input name="boleto_juros" inputmode="decimal" value="{{ boleto.juros|num }}"></label>
+<label class="wide"><span><input type="checkbox" name="boleto_auto" {{ 'checked' if boleto.auto }}> Gerar o boleto sozinho quando o cliente fecha o pedido no boleto ou no faturado (e mandar o link por e-mail)</span></label>
+<label class="wide"><span><input type="checkbox" name="cartao_efi" {{ 'checked' if boleto.cartao }}> Cartão de crédito pela Efí: ao fechar o pedido no cartão, o cliente recebe o link de pagamento da Efí (a Efí precisa liberar o cartão na sua conta antes)</span></label>
+<div class="acts-row wide" style="margin:0"><button class="btn ghost">Salvar</button>{% if boleto.ligado %}<button class="btn ghost" name="acao" value="boletos_atualizar" formnovalidate>Atualizar boletos e cartões pagos</button>{% endif %}</div></form>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="config">
+<h2>Atraso bloqueia o faturado</h2>
+<label>Bloquear o boleto faturado de quem tem parcela vencida há mais de (dias)<input name="bloqueio_atraso_dias" type="number" min="0" max="365" value="{{ bloqueio }}"></label>
+<p class="wide mute pequeno">0 = não bloqueia. Com o bloqueio, a empresa em atraso vê o faturado desligado na finalização (as outras formas continuam) até a parcela ser recebida aqui.</p>
+<div><button class="btn ghost">Salvar</button></div></form>{% endif %}
+{% endblock %}

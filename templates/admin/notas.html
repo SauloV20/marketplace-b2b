@@ -1,0 +1,34 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Notas fiscais (NF-e)</h1>
+<div class="box"><p>A nota é emitida pela tela do pedido (botão <b>Emitir NF-e</b>). Ambiente atual: <b>{{ ambientes[e.ambiente] }}</b> · série {{ e.serie }}.
+<a class="link" href="{{ url_for('admin.fiscal_config') }}">Configuração</a></p>
+{% if faltam %}<p class="msg">Para emitir, falta configurar: {{ faltam|join(', ') }}.</p>{% endif %}</div>
+
+<div class="chips"><a class="chip {{ 'on' if not status }}" href="{{ url_for('admin.notas_lista') }}">Todas</a>{% for k, n in situacoes.items() %}<a class="chip {{ 'on' if status == k }}" href="{{ url_for('admin.notas_lista', status=k) }}">{{ n }}</a>{% endfor %}</div>
+<section class="box" style="overflow-x:auto">
+{% if notas %}<table><tr><th>Número</th><th>Pedido</th><th>Destinatário</th><th class="num">Valor</th><th>Situação</th><th>Emitida</th><th></th></tr>
+{% for n in notas %}<tr><td><b>{{ n.numero }}</b> <small class="mute">série {{ n.serie }}{% if n.ambiente == 2 %} · homologação{% endif %}</small></td>
+<td>{% if n.order_id %}<a class="link" href="{{ url_for('admin.pedido', oid=n.order_id) }}">#{{ n.order_id }}</a>{% else %}—{% endif %}</td>
+<td>{{ n.destinatario }}</td><td class="num">{{ n.valor|brl }}</td>
+<td><span class="tag {{ '' if n.status == 'autorizada' else 'off' }}">{{ situacoes.get(n.status, n.status) }}</span>{% if n.status in ('rejeitada', 'denegada', 'erro') %}<br><small class="mute">{{ n.cstat }} {{ n.motivo|truncate(80) }}</small>{% endif %}</td>
+<td>{{ (n.autorizada_em or n.criado_em)|hora_br }}</td><td><a class="btn ghost" href="{{ url_for('admin.nota', nid=n.id) }}">Abrir</a></td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Nenhuma nota{{ ' nesta situação' if status }}.</p>{% endif %}</section>
+
+<form class="f box" method="get" action="{{ url_for('admin.notas_xmls') }}">
+<h2>XMLs para o contador</h2>
+<label>De<input type="date" name="de" value="{{ mes_passado.isoformat() }}" required></label>
+<label>Até<input type="date" name="ate" value="{{ fim_mes_passado.isoformat() }}" required></label>
+<p class="wide mute pequeno">Arquivo ZIP com os XMLs das notas autorizadas em produção no período, os cancelamentos, as cartas de correção e as inutilizações.</p>
+<div><button class="btn ghost">Baixar ZIP</button></div></form>
+
+<form class="f box" method="post" action="{{ url_for('admin.notas_inutilizar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Inutilizar numeração</h2>
+<p class="wide mute pequeno">Para números que nunca viraram nota (uma nota rejeitada que você desistiu de corrigir, ou um número pulado). A SEFAZ registra que eles não serão usados. Série {{ e.serie }}, {{ ambientes[e.ambiente]|lower }}.</p>
+<label>Do número<input name="inicio" type="number" min="1" required></label>
+<label>Até o número<input name="fim" type="number" min="1" required></label>
+<label class="wide">Motivo (15 a 255 caracteres)<input name="justificativa" minlength="15" maxlength="255" required placeholder="Ex.: Nota rejeitada e refeita com outro número"></label>
+<div><button class="btn ghost" data-confirmar="Inutilizar estes números na SEFAZ? Não dá para desfazer.">Inutilizar</button></div></form>
+{% if inutilizacoes %}<section class="box"><h2>Inutilizações</h2><table><tr><th>Quando</th><th>Faixa e motivo</th><th>Resultado</th><th></th></tr>
+{% for ev in inutilizacoes %}<tr><td>{{ ev.quando|hora_br }}</td><td>{{ ev.texto }}</td><td>{{ 'Homologada · protocolo ' ~ ev.protocolo if ev.ok else ev.cstat ~ ' ' ~ ev.motivo }}</td><td>{% if ev.ok %}<a class="link" href="{{ url_for('admin.nota_evento_xml', eid=ev.id) }}">XML</a>{% endif %}</td></tr>{% endfor %}</table></section>{% endif %}
+{% endblock %}

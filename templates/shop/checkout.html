@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Finalizar compra · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Finalizar compra</h1>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<form method="post" class="cart-layout"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<div class="stack">
+<section class="box"><h3>Dados para a nota</h3>
+{% if cliente.tipo == 'pj' %}<p><b>{{ cliente.razao_social }}</b><br><span class="mute">CNPJ {{ fmt_doc(cliente.documento) }}{% if cliente.inscricao_estadual %} · IE {{ cliente.inscricao_estadual }}{% endif %}</span></p>
+{% else %}<p class="mute">CPF {{ fmt_doc(cliente.documento) }}</p>{% endif %}
+<a class="link" href="{{ url_for('account.dados') }}">Alterar em Meus dados</a></section>
+<section class="box"><h3>Contato e entrega</h3>
+{% if cliente.enderecos %}<label class="end-salvo">Endereço de entrega<select id="endereco-salvo" aria-describedby="end-dica">
+{% for e in cliente.enderecos %}<option data-cep="{{ e.cep[:5] }}-{{ e.cep[5:] }}" data-endereco="{{ e.endereco }}" {{ 'selected' if f.get('address') == e.endereco }}>{{ e.apelido }} · {{ e.endereco|truncate(60) }}</option>{% endfor %}
+<option value="" data-cep="" data-endereco="" {{ 'selected' if f.get('address') not in cliente.enderecos|map(attribute='endereco')|list }}>Outro endereço</option></select></label>
+<p class="mute pequeno" id="end-dica">Gerencie seus endereços em <a class="link" href="{{ url_for('account.enderecos') }}">Minha conta › Endereços</a>.</p>{% endif %}
+<div class="fields">
+<label>{{ 'Responsável pela compra' if cliente.tipo == 'pj' else 'Nome completo' }}<input name="name" value="{{ f.get('name','') }}" autocomplete="name" required></label>
+<label>E-mail<input name="email" type="email" value="{{ f.get('email','') }}" autocomplete="email" required></label>
+<label>Telefone / WhatsApp<input name="phone" type="tel" inputmode="tel" value="{{ f.get('phone','') }}" autocomplete="tel" required></label>
+<label>CEP<input name="cep" id="cep" value="{{ f.get('cep','') }}" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" maxlength="9" required data-frete-url="{{ url_for('shop.cart_frete') }}"></label>
+<label class="wide">Endereço de entrega<input name="address" id="endereco" value="{{ f.get('address','') }}" autocomplete="street-address" placeholder="Rua, número, bairro, cidade, CEP" required></label>
+<label class="wide"><span><input type="checkbox" name="guardar_endereco" {{ 'checked' if f.get('guardar_endereco') or not cliente.enderecos }}> Guardar este endereço na minha conta</span></label>
+</div></section>
+<section class="box"><h3>Forma de pagamento</h3><div class="pay">
+{% set dica = {'pix':'Aprovação na hora, com QR Code e copia e cola','cartao':'Pague na página segura da Efí logo após confirmar o pedido','boleto':'Boleto à vista enviado por e-mail e WhatsApp','whatsapp':'Combine o pagamento direto com a equipe','faturado':'Boleto a prazo, enviado com a nota fiscal','orcamento':'Envie para análise: o Marketplace B2B confere preços, prazo e frete e responde antes de faturar'} %}
+{% for k, nome in metodos.items() %}
+<label class="opt"><input type="radio" name="payment" value="{{ k }}" {{ 'checked' if f.get('payment') == k }} {{ 'disabled' if k == 'faturado' and not faturado_cabe }} required><span><b>{{ nome }}</b><small>{{ dica[k] }}{% if k == 'faturado' and faturado_atraso %} · bloqueado: há boleto vencido em aberto{% elif k == 'faturado' and credito_livre is not none %} · crédito disponível: {{ credito_livre|brl }}{% if not faturado_cabe %} (menor que este pedido){% endif %}{% endif %}</small></span></label>
+{% if k == 'faturado' %}<label>Prazo do boleto faturado<select name="prazo">{% for p in prazos %}<option value="{{ p }}" {{ 'selected' if f.get('prazo') == p }}>{{ p }} dias</option>{% endfor %}</select></label>{% endif %}
+{% endfor %}</div></section>
+</div>
+<aside class="box summary"><h3>Resumo do pedido</h3>
+<div id="resumo-itens">{% include "shop/_resumo_itens.html" %}</div>
+<div id="frete-escolha">{% include "shop/_frete_opcoes.html" with context %}</div>
+<div class="sum-row" id="linha-frete"><span>Frete <small class="mute" id="frete-prazo">{% if calculo and calculo.prazo %}({{ calculo.prazo }}){% endif %}</small></span>
+<b id="frete-valor" class="{{ 'gratis' if calculo and calculo.gratis }}">{% if calculo %}{{ 'Grátis' if calculo.gratis else calculo.valor|brl }}{% elif cep_ok %}A combinar{% else %}Informe o CEP{% endif %}</b></div>
+<div class="sum-row total"><span>Total</span><b id="total-geral">{{ (total - desconto + valor_frete)|brl }}</b></div>
+<p class="mute pequeno" id="frete-obs" {{ 'hidden' if calculo or not cep_ok }}>Sem opção de entrega cotada para este CEP: o Marketplace B2B combina o frete com você depois do pedido.</p>
+<button class="btn block">Confirmar pedido</button>
+<a class="link" href="{{ url_for('shop.cart') }}">Voltar ao carrinho</a></aside>
+</form></main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='frete.js') }}"></script>{% endblock %}

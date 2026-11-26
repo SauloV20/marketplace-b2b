@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Termos de Uso · Marketplace B2B{% endblock %}
+{% block head %}<meta name="description" content="Termos de uso do Marketplace B2B: cadastro, preços de atacado, pedidos, pagamento, entrega e trocas.">
+<link rel="canonical" href="{{ site_base }}/termos">{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow legal">
+<h1>Termos de Uso</h1>
+<p class="mute">Última atualização: {{ versao[8:10] }}/{{ versao[5:7] }}/{{ versao[:4] }}</p>
+
+<p>Estes termos regulam o uso da loja Marketplace B2B{% if e.empresa_razao_social %}, operada por {{ e.empresa_razao_social }}{% if e.empresa_cnpj %} (CNPJ {{ e.empresa_cnpj }}){% endif %}{% endif %}. Ao criar uma conta, você declara que leu e aceita estes termos e a <a class="link" href="{{ url_for('shop.privacidade') }}">Política de Privacidade</a>.</p>
+
+<h2>1. Conta</h2>
+<ul>
+<li>Para ver preços e comprar é preciso ter uma conta, com e-mail{% if sms %} e celular{% endif %} confirmados e CPF ou CNPJ válido.</li>
+<li>Você é responsável pela veracidade dos dados e pelo sigilo da sua senha. Avise o Marketplace B2B se suspeitar de uso indevido.</li>
+<li>Contas de empresa ficam em análise até a aprovação pelo Marketplace B2B. Desconto e boleto faturado valem só para empresas aprovadas e podem ser revistos a qualquer tempo.</li>
+<li>O Marketplace B2B pode recusar ou suspender cadastros com dados falsos, CNPJ irregular ou indícios de fraude.</li>
+</ul>
+
+<h2>2. Preços, quantidades e estoque</h2>
+<ul>
+<li>Os preços podem variar por quantidade, por condição da empresa e conforme a tabela vigente na data do pedido.</li>
+<li>Alguns produtos são vendidos em quantidade mínima ou em múltiplos (embalagens). Quando o fracionamento é permitido, as unidades fora da embalagem fechada podem ter acréscimo, mostrado antes da compra.</li>
+<li>O estoque é reservado ao confirmar o pedido. Pedidos de orçamento não reservam estoque até serem aprovados.</li>
+</ul>
+
+<h2>3. Orçamentos</h2>
+<p>O orçamento é uma solicitação: o Marketplace B2B pode ajustar preços, condições de pagamento e prazos antes de aprovar, ou recusar. O pedido só é confirmado depois da aprovação.</p>
+
+<h2>4. Pagamento</h2>
+<ul>
+<li>As formas de pagamento disponíveis aparecem na finalização do pedido. O boleto faturado está sujeito aos prazos liberados para a sua empresa.</li>
+<li>Pedidos não pagos no prazo podem ser cancelados e o estoque, liberado.</li>
+<li>Em pagamentos por Pix, o Marketplace B2B pode conferir se quem pagou corresponde ao cadastro e pedir esclarecimentos antes de enviar.</li>
+</ul>
+
+<h2>5. Frete e entrega</h2>
+<p>Frete, prazo e forma de entrega são combinados após o pedido, salvo quando informados na finalização.</p>
+
+<h2>6. Cancelamento, trocas e devoluções</h2>
+<ul>
+<li>Você pode cancelar pedidos que ainda aguardam pagamento e orçamentos em análise pela sua conta.</li>
+<li>Para compras de consumidor final (pessoa física), vale o direito de arrependimento de 7 dias do Código de Defesa do Consumidor para compras feitas pela internet.</li>
+<li>Produtos com defeito seguem as regras de garantia legal. Fale com o Marketplace B2B para combinar a troca ou a devolução.</li>
+</ul>
+
+<h2>7. Responsabilidades</h2>
+<p>O Marketplace B2B se esforça para manter as informações corretas e o site disponível, mas pode haver erros de digitação de preço ou descrição e interrupções temporárias. Pedidos com erro evidente de preço podem ser cancelados, com devolução de valores pagos.</p>
+
+<h2>8. Alterações e foro</h2>
+<p>Estes termos podem ser atualizados; a versão vigente fica nesta página. Fica eleito o foro da comarca da sede do Marketplace B2B, ressalvado o direito do consumidor de escolher o seu domicílio.</p>
+{% if e.empresa_email_privacidade %}<p>Dúvidas: <a class="link" href="mailto:{{ e.empresa_email_privacidade }}">{{ e.empresa_email_privacidade }}</a>.</p>{% endif %}
+</main>
+{% endblock %}

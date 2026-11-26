@@ -1,0 +1,25 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Fluxo de caixa</h1>
+<form method="get" class="busca-pedidos box">
+<label>De<input type="date" name="de" value="{{ de.isoformat() }}"></label>
+<label>Até<input type="date" name="ate" value="{{ ate.isoformat() }}"></label>
+<button class="btn">Ver</button></form>
+<p class="mute">O que já entrou e saiu (pela data do pagamento) e o que está previsto (pelo vencimento das contas em aberto). Conta vencida e ainda não paga aparece como prevista para hoje{% if vencidas %} ({{ vencidas }} conta(s) vencida(s) em aberto: veja no <a class="link" href="{{ url_for('admin.financeiro_pagina', situacao='vencidas') }}">Financeiro</a>){% endif %}.</p>
+
+<div class="kpis">
+<div class="box kpi">Entrou<b class="gratis">{{ totais.entrou|brl }}</b></div>
+<div class="box kpi">Saiu<b>{{ totais.saiu|brl }}</b></div>
+<div class="box kpi">A receber<b>{{ totais.a_receber|brl }}</b></div>
+<div class="box kpi">A pagar<b>{{ totais.a_pagar|brl }}</b></div>
+<div class="box kpi">Resultado do período<b class="{{ 'gratis' if totais.saldo >= 0 }}">{{ totais.saldo|brl }}</b></div></div>
+
+<section class="box" style="overflow-x:auto">
+{% if linhas %}<table><tr><th>Dia</th><th class="num">Entrou</th><th class="num">Saiu</th><th class="num">A receber</th><th class="num">A pagar</th><th class="num">Saldo do dia</th><th class="num">Acumulado</th></tr>
+{% for l in linhas %}<tr class="{{ 'mute' if l.data > hoje }}"><td>{{ l.data.strftime('%d/%m/%Y') }}{% if l.data == hoje %} <span class="tag">hoje</span>{% endif %}</td>
+<td class="num">{{ l.entrou|brl if l.entrou else '' }}</td><td class="num">{{ l.saiu|brl if l.saiu else '' }}</td>
+<td class="num">{{ l.a_receber|brl if l.a_receber else '' }}</td><td class="num">{{ l.a_pagar|brl if l.a_pagar else '' }}</td>
+<td class="num">{{ l.saldo|brl }}</td><td class="num"><b class="{{ 'gratis' if l.acumulado >= 0 }}">{{ l.acumulado|brl }}</b></td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Nenhuma conta paga ou prevista neste período.</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,186 @@
+{% extends "admin/layout.html" %}
+{% macro ir(area, endpoint, texto) %}{% if area == 'livre' or (area == 'total' and acesso_total) or (area not in ('livre', 'total') and pode(area)) %}<a class="link" href="{{ url_for(endpoint) }}">{{ texto }}</a>{% else %}<b>{{ texto }}</b>{% endif %}{% endmacro %}
+{% block content %}
+<h1>Manual do painel</h1>
+<div class="box manual-indice"><p>Como usar cada parte do painel do Marketplace B2B. Os links abrem a tela certa (as áreas que você não tem liberadas aparecem em negrito, sem link).</p>
+<ol>
+<li><a href="#comeco">Primeiros passos</a></li><li><a href="#produtos">Produtos, preços e estoque</a></li>
+<li><a href="#custos">Fornecedores e formação de preço</a></li><li><a href="#erp">Estoque, compras, financeiro e lucro</a></li><li><a href="#nfe">Nota fiscal (NF-e)</a></li><li><a href="#clientes">Clientes e empresas</a></li><li><a href="#pedidos">Pedidos, orçamentos e entrega</a></li>
+<li><a href="#vendas">Vendas e relatórios</a></li><li><a href="#marketing">Cupons e ajuda (FAQ)</a></li>
+<li><a href="#config">Regras, frete, backup e equipe</a></li><li><a href="#seguranca">Segurança do painel</a></li>
+<li><a href="#cliente-ve">O que o cliente vê e faz</a></li><li><a href="#render">Configurações no Render</a></li></ol></div>
+
+<section class="box manual" id="comeco"><h2>1. Primeiros passos</h2><ol>
+<li>Em {{ ir('total', 'admin.regras', 'Regras de venda') }}, preencha os <b>dados da empresa</b> (razão social, CNPJ, endereço e e-mail de privacidade): eles aparecem na Política de Privacidade e como remetente na etiqueta de envio. Ali também fica o <b>pedido mínimo</b> da loja.</li>
+<li>Comece o dia em {{ ir('livre', 'admin.hoje', 'Hoje') }}: orçamentos esperando, pedidos para enviar, contas vencidas, estoque zerado, notas de compra para lançar, pedidos sem nota fiscal e vendas com margem baixa (cada um vê só as áreas liberadas).</li>
+<li>Em {{ ir('livre', 'admin.conta', 'Minha conta') }}, confira o <b>e-mail do site</b> (botão de e-mail de teste) e ative a <b>verificação em duas etapas</b>.</li>
+<li>Em {{ ir('total', 'admin.backup_pagina', 'Backup e espaço') }}, ligue o <b>backup semanal por e-mail</b>: crie no Render a variável <code>BACKUP_SENHA</code> (uma senha forte, anotada também fora do Render: sem ela o arquivo não abre) e informe o e-mail que recebe. Para o envio sair toda segunda de manhã, crie também <code>TAREFAS_TOKEN</code> no Render e, no GitHub (Settings › Secrets and variables › Actions), os segredos <code>TAREFAS_TOKEN</code> (o mesmo valor) e <code>SITE_URL</code>; sem eles, o backup sai quando alguém abre o painel e já passou uma semana. O e-mail leva os dados e os XMLs das notas (que a lei manda guardar por 5 anos), sem as fotos: baixe o backup completo de vez em quando. O banco gratuito do Render pode expirar.</li>
+<li>Em {{ ir('total', 'admin.frete_lista', 'Frete') }}, cadastre pelo menos uma regra padrão para o Brasil (sem regra, o frete fica "a combinar").</li></ol></section>
+
+<section class="box manual" id="produtos"><h2>2. Produtos, preços e estoque</h2>
+<h3>Cadastro</h3><ul>
+<li>Em {{ ir('produtos', 'admin.products', 'Produtos') }}, clique em <b>Novo produto</b>. O <b>código (SKU)</b> é usado na planilha, no pedido rápido e na busca.</li>
+<li><b>Fotos</b>: até 8 por produto, direto do celular (até 10 MB cada). A loja reduz e comprime sozinha. A primeira é a principal.</li>
+<li><b>Peso por unidade</b>: usado no cálculo do frete por kg.</li></ul>
+<h3>Regras de atacado</h3><ul>
+<li><b>Quantidade mínima</b> e <b>múltiplo</b> (ex.: caixa com 10). O carrinho ajusta sozinho.</li>
+<li><b>Preço por quantidade</b>: uma faixa por linha, como <code>50 = 16,90</code> (a partir de 50 unidades, cada uma sai por R$ 16,90).</li>
+<li><b>Fracionar embalagem</b>: vende fora da caixa com um acréscimo em %. O que sobra da caixa aberta vira estoque avulso.</li></ul>
+<h3>Promoção com data</h3><ul>
+<li>No produto, preencha o <b>preço promocional</b> e as datas. No período, aparece o selo <b>Oferta</b> e o link <b>% Ofertas</b> no menu da loja. O cliente paga o <b>menor</b> entre o preço dele e o promocional (os descontos não se somam). Depois do último dia, volta sozinho ao normal.</li></ul>
+<h3>Estoque</h3><ul>
+<li><b>Avisar quando o estoque chegar a</b>: quando uma venda cruza esse número, a equipe de produtos recebe um e-mail e o produto aparece em "Estoque baixo" na tela de Vendas.</li>
+<li><b>Avise-me quando chegar</b>: clientes pedem na página do produto esgotado. Ao salvar o produto com estoque, eles recebem o e-mail sozinhos (a tela do produto mostra quantos estão esperando).</li></ul>
+<h3>Planilha</h3><ul>
+<li>Em {{ ir('produtos', 'admin.planilhas', 'Planilhas') }}: baixe a planilha, altere no Excel (preços, estoque, promoções...) e envie de volta. Nada é gravado antes da <b>prévia</b>, que mostra o que vai mudar e os erros linha por linha.</li>
+<li>Para tirar uma promoção pela planilha, escreva <b>remover</b> em <code>preco_promocional</code>.</li>
+<li>Produto com <b>preço calculado</b> (seção 3): a coluna de preço da planilha é ignorada, porque o preço sai do custo.</li></ul>
+<h3>Banners e categorias</h3><ul>
+<li>{{ ir('produtos', 'admin.banners_lista', 'Banners') }}: escolha um produto em destaque (a arte é montada sozinha) ou envie uma imagem pronta.</li>
+<li>{{ ir('produtos', 'admin.categories', 'Categorias') }}: só dá para excluir categoria sem produtos.</li></ul></section>
+
+<section class="box manual" id="custos"><h2>3. Fornecedores e formação de preço</h2>
+<p class="mute">Opcional: só vale para os produtos em que você marcar <b>preço calculado</b>. Os outros continuam com o preço digitado, igual para todo o Brasil.</p>
+<h3>Passo a passo</h3><ol>
+<li>Em {{ ir('custos', 'admin.formacao_preco', 'Formação de preço') }}, escolha o <b>estado da loja</b> e preencha os <b>impostos federais</b> (PIS, COFINS, IRPJ e CSLL, ou o DAS do Simples), as <b>despesas da venda</b> (comissão, taxa de cartão) e o <b>markup padrão</b>.</li>
+<li>Na mesma tela, preencha o <b>ICMS</b> do estado da loja (alíquota interna) e clique em <b>Preencher ICMS interestadual</b> para os outros estados (7% ou 12%). Estado vazio usa a alíquota da loja. Use o <b>adicional</b> para DIFAL, FCP ou ST que você paga ao vender para lá.</li>
+<li>Em cada estado, escolha a <b>entrega</b>: <b>transportadora</b> (frete cobrado à parte, pelas regras de Frete) ou <b>frota própria</b> (o custo, em % da venda, entra no preço e o frete sai grátis no pedido).</li>
+<li>Em {{ ir('custos', 'admin.percentuais', 'Percentuais') }} (link na Formação de preço), cadastre cada imposto ou despesa com nome e %: <b>sobre o preço de venda</b> (soma com o ICMS) ou <b>sobre o preço de compra</b> (soma no custo). Ele vale para <b>todos os produtos</b>, <b>uma categoria</b> ou <b>um produto</b>, e pode valer só para um estado. Com o mesmo nome em mais de um nível, vale o mais específico (ex.: “PIS 1,65%” para todos e “PIS 0%” num produto). Na tela <b>Custo e preço</b> do produto dá para ver e incluir os percentuais só daquele produto.</li>
+<li>Em {{ ir('custos', 'admin.fornecedores', 'Fornecedores') }}, cadastre de quem você compra e <b>como a mercadoria chega</b>: o fornecedor entrega (frete incluso ou % à parte), transportadora paga por você (%), ou <b>veículo próprio</b> (custo da viagem ÷ valor que cada viagem traz). Informe também os <b>créditos de impostos</b> da compra (0 no Simples).</li>
+<li>No fornecedor, inclua os produtos com o <b>preço de compra</b> (por unidade vendida na loja), IPI e ICMS-ST. Também dá para fazer pelo botão <b>Custo</b> na lista de produtos.</li>
+<li>Em <b>Custo</b> do produto, escolha qual fornecedor usar (ou o de menor custo), ajuste o markup do produto se quiser e marque <b>preço calculado</b>.</li></ol>
+<h3>Como a conta é feita</h3><ul>
+<li><b>Custo</b> = compra + IPI + ICMS-ST + frete da compra − créditos.</li>
+<li><b>Preço</b> = custo × (1 + markup) ÷ (1 − impostos e despesas da venda). O markup é o seu ganho sobre o custo, já sem os impostos. Vale o do produto; sem ele, o da categoria; sem os dois, o padrão.</li>
+<li>O <b>preço de tabela</b> é o do estado da loja. O cliente de outro estado vê o preço ajustado pelo imposto de lá, pelo CEP do carrinho ou, sem ele, pelo endereço principal. Se ele muda o CEP na finalização, o resumo se refaz; se confirmar com um estado diferente do que viu, a loja mostra os preços novos antes de gravar o pedido.</li>
+<li><b>Proteção de margem</b> (no fim da tela de Formação de preço): escolha a margem mínima (0 = só avisar abaixo do custo) e se quer <b>só avisar</b> ou <b>bloquear</b>. Avisa na edição do produto, no pedido e no painel Hoje; em bloquear, recusa o preço editado no pedido, a aprovação do orçamento e o cupom que deixariam a venda abaixo do mínimo.</li>
+<li>Quando você muda um preço de compra, o frete do fornecedor, um imposto ou um markup, os preços são <b>recalculados na hora</b>. As faixas de preço por quantidade acompanham na mesma proporção. A promoção continua com o valor que você digitou.</li>
+<li>Produto com preço calculado sem fornecedor (por exemplo, depois de excluir o fornecedor) mantém o último preço e aparece num aviso na tela de Formação de preço.</li>
+<li>Só quem tem a área <b>Fornecedores, custos e formação de preço</b> vê custos e margens. Confirme as alíquotas com o seu contador: a tela é uma ajuda para formar preço, não substitui o cálculo fiscal da nota.</li></ul></section>
+
+<section class="box manual" id="erp"><h2>4. Estoque, compras, financeiro e lucro (gestão)</h2>
+<h3>Estoque</h3><ul>
+<li>Em {{ ir('produtos', 'admin.estoque_lista', 'Estoque') }} você vê a posição de cada produto (com filtro de estoque baixo e zerados){% if pode('custos') %} e o valor do estoque a custo{% endif %}.</li>
+<li><b>Inventário</b>: conte a prateleira, digite na coluna “Contado” só os produtos com diferença e clique em <b>Gravar inventário</b>.</li>
+<li><b>Histórico</b> de cada produto: toda venda, cancelamento, alteração de pedido, compra recebida, ajuste e inventário, com o saldo depois de cada um e quem fez. Ali também dá para fazer um <b>ajuste</b> (perda, avaria, uso interno, correção).</li></ul>
+<h3>Compras</h3><ol>
+<li>Em {{ ir('custos', 'admin.compras_lista', 'Compras') }}, a <b>sugestão de compra</b> mostra o que repor: produtos em que o estoque mais o que já está em compra não chega ao alerta de estoque mais 1 mês de vendas (você escolhe de 1 a 6 meses). As quantidades saem arredondadas para a embalagem e podem ser ajustadas.</li>
+<li>Clique em <b>Criar pedido de compra</b> (ou crie um vazio e inclua os produtos). Os preços vêm do cadastro do fornecedor.</li>
+<li>Mande ao fornecedor pelo <b>WhatsApp</b>, <b>e-mail</b> ou <b>PDF</b> e marque como enviado.</li>
+<li>Ou parta da nota do fornecedor: em {{ ir('custos', 'admin.notas_compra', 'Notas de compra') }}, <b>Buscar notas na SEFAZ</b> traz as NF-e emitidas para o CNPJ da loja (ou importe o XML que veio por e-mail). Em cada uma, <b>Dar ciência e baixar</b> libera o XML com os itens; depois, <b>Lançar em Compras</b> liga cada item a um produto da loja (com as unidades por item, ex.: caixa com 10) e cria a compra pronta para receber. Na próxima nota do mesmo fornecedor, os itens já vêm ligados. A SEFAZ só deixa buscar de novo depois de 1 hora quando não há novidade.</li>
+<li>Quando a mercadoria chegar, use <b>Receber mercadoria</b>: confira a quantidade e o preço da nota. O estoque sobe, o <b>custo médio</b> é recalculado, o preço de compra do fornecedor é atualizado (se marcado) e as <b>contas a pagar</b> entram no Financeiro, uma por prazo da condição (ex.: 30/60).</li></ol>
+<h3>Financeiro</h3><ul>
+<li>Em {{ ir('financeiro', 'admin.financeiro_pagina', 'Financeiro') }}, as <b>contas a receber</b> dos pedidos são criadas sozinhas: no boleto faturado, uma parcela por prazo (30/60/90 dias a partir da data do pedido); nas outras formas, uma só. Pedido pago baixa as parcelas; cancelado ou excluído, apaga as que estavam em aberto.</li>
+<li>Ao <b>receber</b> uma parcela, informe a data, o valor e a forma. Quando todas as parcelas de um pedido estão recebidas, ele passa para <b>pago</b> (e o cliente recebe o e-mail). <b>Desfazer baixa</b> volta a parcela (e o pedido) para em aberto.</li>
+<li><b>Boleto registrado pela Efí</b>: com <code>EFI_CLIENT_ID</code> e <code>EFI_CLIENT_SECRET</code> (as do Pix) e a API de Cobranças liberada na Efí, cada parcela vira um boleto (botão <b>Gerar boletos Efí</b> no pedido, ou sozinho ao fechar o pedido, se ligado no Financeiro). O cliente recebe o link por e-mail e vê em Meus pedidos. Quando paga, a Efí avisa o site e a parcela é baixada sozinha; <b>Atualizar boletos pagos</b> confere na Efí se algum aviso não chegou. Pedido cancelado cancela os boletos em aberto. Multa e juros ficam na configuração do boleto. A Efí cobra uma tarifa por boleto pago.</li>
+<li><b>Cartão de crédito pela Efí</b>: primeiro peça à Efí a liberação do cartão na sua conta (formulário de análise, até 5 dias úteis). Depois marque <b>Cartão de crédito pela Efí</b> na configuração do boleto, no Financeiro (usa as mesmas credenciais). Quando o cliente fecha o pedido no cartão, o site cria na Efí um link de pagamento no valor total (com frete e cupom), válido por 3 dias. O cliente clica em <b>Pagar com cartão</b> na página do pedido e digita o cartão e as parcelas na página da Efí: os dados do cartão não passam pelo site. Quando a Efí confirma, o pedido passa para pago, a conta a receber é baixada e o cliente recebe o e-mail. Cartão recusado ou link vencido: o cliente gera outro link na mesma página (ou você, em Pedidos, com <b>Novo link do cartão</b>). <b>Verificar cartão</b>, em Pedidos, e <b>Atualizar boletos e cartões pagos</b>, no Financeiro, conferem na Efí se algum aviso não chegou. Com o link criado, o pedido não pode mais ser editado; cancelar o pedido cancela o link. Devolução ou contestação aparecem no histórico do pedido.</li>
+<li>Lance as outras <b>despesas</b> (aluguel, salários, impostos) em <b>Lançar conta</b>, com a opção de repetir todo mês.</li>
+<li><b>Atraso bloqueia o faturado</b>: na aba A receber, escolha quantos dias de atraso desligam o boleto faturado da empresa na finalização (0 = não bloqueia).</li>
+<li>{{ ir('financeiro', 'admin.fluxo_caixa', 'Fluxo de caixa') }}: dia a dia do que entrou, saiu e está previsto, com o saldo acumulado.</li></ul>
+<h3>Lucro</h3><ul>
+<li>Cada item vendido guarda o <b>custo daquele momento</b> (custo médio das compras ou, sem compra, o da formação de preço).</li>
+<li>{{ ir('financeiro', 'admin.lucro_pagina', 'Lucro') }} mostra receita, custo, impostos e despesas estimados (da formação de preço) e o lucro por produto, categoria, cliente e estado, com Excel. A tela do pedido também mostra o lucro dele.</li>
+<li>Pedidos de antes do ERP ficam sem custo; o botão <b>Usar o custo de hoje nesses itens</b> preenche com o custo atual.</li>
+<li>A nota fiscal continua saindo pelo emissor da sua contabilidade: anexe o PDF e o XML no pedido, como antes.</li></ul></section>
+
+<section class="box manual" id="nfe"><h2>5. Nota fiscal (NF-e)</h2>
+<p class="mute">A nota é enviada direto à SEFAZ do seu estado com o certificado digital A1 da empresa. O envio fica separado do resto: dá para trocar por uma API de emissão no futuro sem mudar as telas.</p>
+<h3>Antes da primeira nota</h3><ol>
+<li><b>Certificado A1</b> (arquivo .pfx): no Render, em <b>Environment › Secret Files</b>, envie o arquivo (ex.: <code>certificado.pfx</code>) e crie as variáveis <code>NFE_CERTIFICADO</code> = <code>/etc/secrets/certificado.pfx</code> e <code>NFE_CERTIFICADO_SENHA</code>. Nunca mande o certificado ou a senha por e-mail ou chat.</li>
+<li>Em {{ ir('fiscal', 'admin.fiscal_config', 'Nota fiscal › Configuração') }}, preencha os dados da empresa (com <b>Buscar pelo CEP</b> para o código IBGE), o regime tributário, a série e o próximo número (continue a numeração se já emitia nota em outro sistema).</li>
+<li>Crie a <b>regra fiscal padrão</b> e confira com o contador: CFOP (5102/6102 para revenda), situação do ICMS (CSOSN no Simples, CST no regime normal), IPI, PIS e COFINS. Crie outras regras para grupos diferentes (ex.: produtos com substituição tributária) e escolha a regra no cadastro do produto.</li>
+<li>Preencha o <b>NCM</b> de cada produto (Editar produto › Nota fiscal, ou as colunas <code>ncm</code> e <code>cest</code> da planilha).</li>
+<li>Clique em <b>Testar comunicação com a SEFAZ</b>.</li></ol>
+<h3>Emitir</h3><ul>
+<li>Na tela do pedido (aguardando pagamento ou pago), clique em <b>Emitir NF-e</b>. Confira o destinatário: o endereço do pedido é texto livre, então número e bairro precisam de atenção. Use <b>Buscar pelo CEP</b>.</li>
+<li><b>Homologação</b> é o ambiente de testes: a nota não tem valor fiscal e não vai para o cliente. Emita algumas, mostre o DANFE e o XML ao contador e só então troque para <b>produção</b>. Em produção, o XML e o DANFE ficam no pedido e o cliente baixa em Minha conta › Notas e boletos.</li>
+<li>Nota <b>rejeitada</b>: a mensagem da SEFAZ diz o que corrigir. Ajuste (cadastro, regra fiscal ou destinatário) e use <b>Corrigir e reenviar</b>: o número é o mesmo. Se desistir, <b>inutilize</b> o número em Notas fiscais.</li>
+<li><b>Sem resposta</b> da SEFAZ: use <b>Consultar na SEFAZ</b> antes de reenviar (a nota pode ter sido autorizada).</li>
+<li>No boleto faturado, as parcelas do Financeiro saem como duplicatas na nota.</li></ul>
+<h3>Depois de emitida</h3><ul>
+<li><b>Carta de correção</b>: corrige dados que não mudam imposto, valor, quantidade, destinatário ou data (até 20 por nota).</li>
+<li><b>Cancelar</b>: só dentro do prazo do estado (em geral 24 horas) e se a mercadoria não saiu. Cancelar a nota não cancela o pedido.</li>
+<li>Em produção, o cliente recebe a nota por e-mail (DANFE e XML) assim que ela é autorizada (dá para desligar na configuração; o botão <b>Enviar por e-mail ao cliente</b> manda de novo).</li>
+<li>Todo mês, baixe o <b>ZIP com os XMLs</b> em Notas fiscais e mande ao contador.</li>
+<li>Pedido com nota autorizada em produção não pode ser excluído (cancele a nota antes).</li></ul>
+<h3>Ainda não feito</h3><ul>
+<li>DIFAL (grupo ICMSUFDest) para venda a consumidor não contribuinte de outro estado no regime normal: emita esses casos pelo emissor da contabilidade.</li>
+<li>ICMS com substituição tributária calculada na nota (CST 10/CSOSN 201), contingência e NFC-e. A SEFAZ avisa na homologação se algum campo novo (como os da reforma tributária) passar a ser exigido.</li></ul></section>
+
+<section class="box manual" id="clientes"><h2>6. Clientes e empresas</h2><ul>
+<li>Em {{ ir('clientes', 'admin.clientes', 'Clientes') }}, o filtro <b>Em análise</b> mostra as empresas esperando aprovação. A consulta na Receita (BrasilAPI) é feita no cadastro; dá para consultar de novo na ficha.</li>
+<li>Na ficha da empresa: <b>aprovar</b>, <b>desconto</b> sobre a tabela, <b>prazos do boleto faturado</b> (ex.: <code>28; 30/60/90</code>) e o <b>limite de crédito do faturado</b>. O limite conta os boletos faturados ainda não pagos; marcar o pedido como pago libera o valor.</li>
+<li><b>Equipe da empresa</b>: o titular (quem tem o CNPJ) convida compradores e aprovadores em Minha conta › Equipe. O pedido de um comprador fica "aprovação do cliente" até a empresa aprovar; só então chega para o Marketplace B2B. A ficha mostra quem está na equipe.</li>
+<li><b>Excluir cliente</b> apaga a conta (e a equipe), mas os pedidos ficam (obrigação fiscal), sem ligação com a conta.</li></ul></section>
+
+<section class="box manual" id="pedidos"><h2>7. Pedidos, orçamentos e entrega</h2>
+<h3>Situações</h3><ul>
+<li><b>Aprovação do cliente</b>: pedido de um comprador esperando a empresa aprovar (não reserva estoque; não precisa fazer nada).</li>
+<li><b>Orçamento</b>: o cliente pediu para a loja conferir. Em <b>Revisar orçamento</b>, ajuste preços, frete, forma de pagamento e aprove (o estoque é reservado aí) ou recuse.</li>
+<li><b>Aguardando pagamento</b> → <b>Pago</b>: no Pix da Efí, a confirmação é automática; nas outras formas, marque como pago na lista.</li>
+<li><b>Cancelado</b>: devolve o estoque. Prefira cancelar a excluir: o pedido fica no histórico.</li></ul>
+<h3>Na página do pedido</h3><ul>
+<li><b>Editar</b>: quantidades, preços, incluir produto e frete, enquanto aguarda pagamento (não vale para pedido pago, enviado ou com Pix gerado na Efí). O estoque é acertado na hora e o cliente pode ser avisado.</li>
+<li><b>Etiqueta (Melhor Envio)</b>: com o token configurado, a página do pedido mostra a etiqueta. Confira o endereço do destinatário (separado pelo CEP), escolha o serviço e se vai com a <b>nota fiscal</b> (chave da NF-e; envio comercial) ou com <b>declaração de conteúdo</b> (só pessoa física ou empresa sem inscrição estadual) e clique em <b>Comprar etiqueta</b>: o valor sai da carteira do Melhor Envio, a etiqueta é gerada e aparece o botão <b>Imprimir</b>. Se algo falhar no meio (ex.: sem saldo), a mensagem aparece e <b>Continuar</b> retoma de onde parou, sem pagar duas vezes. Depois de postar, o rastreio é conferido <b>sozinho</b> várias vezes por dia (pelo GitHub, com os segredos <code>SITE_URL</code> e <code>TAREFAS_TOKEN</code>, os mesmos do backup): o pedido vira enviado e o cliente recebe o código por e-mail; na entrega, vira entregue. <b>Atualizar rastreio</b> confere na hora. Se a entrega for interrompida (ex.: destinatário ausente), aparece um aviso na etiqueta e no histórico. Etiqueta ainda não postada pode ser cancelada (o valor volta para a carteira).</li>
+<li><b>Envio e rastreio</b>: transportadora, código e link. O cliente recebe e-mail ao enviar e ao entregar. O boleto faturado pode ser enviado antes de pago.</li>
+<li><b>Documentos</b>: anexe nota fiscal (PDF), XML, boleto ou imagem. O cliente baixa em Meus pedidos e em Notas e boletos.</li>
+<li><b>Imprimir romaneio e etiqueta</b>: lista de separação com caixinhas de conferência e etiqueta 10×15 cm. Na lista de pedidos, marque vários e imprima de uma vez.</li>
+<li><b>Histórico</b>: tudo o que aconteceu no pedido, com data, hora e quem fez (cliente, loja ou automático).</li></ul>
+<h3>Lista de pedidos</h3><ul>
+<li>{{ ir('pedidos', 'admin.orders', 'Pedidos') }}: busque por número, nome, empresa, CPF/CNPJ, e-mail, rastreio ou cupom, e filtre por período. O total do filtro aparece em cima.</li>
+<li><b>Excluir pedidos</b> (só acesso total): para teste ou lançamento por engano. Pedido em aberto ou pago devolve o estoque.</li>
+<li>{{ ir('pedidos', 'admin.devolucoes_lista', 'Devoluções e trocas') }}: o cliente pede em Meus pedidos (depois do envio, dentro do prazo configurado, padrão 30 dias da entrega), escolhendo itens, quantidades e o motivo; você recebe um e-mail. <b>Aprovar</b> manda as instruções de envio ao cliente; <b>Recusar</b> exige o motivo. Quando os produtos chegam, <b>Marcar como recebidos</b> (marcado, eles voltam ao estoque; desmarque se vieram avariados). <b>Concluir</b>: na devolução, informe o valor (sugestão: os itens com o cupom rateado, sem frete) e como devolveu. Pix, transferência ou dinheiro: faça a devolução e registre aqui (vira conta paga "Devolução a cliente" no Financeiro). Cartão pela Efí: o estorno é feito direto na Efí (parcial em até 90 dias, total em até 360, um estorno parcial por dia). Na troca, envie os produtos novos e conclua. A NF-e de devolução, quando precisar, sai pelo emissor de NF-e.</li></ul></section>
+
+<section class="box manual" id="vendas"><h2>8. Vendas e relatórios</h2><ul>
+<li>{{ ir('vendas', 'admin.dashboard', 'Vendas') }}: faturamento, pedidos, orçamentos e empresas para responder, mais vendidos e estoque baixo.</li>
+<li>{{ ir('vendas', 'admin.relatorios_pagina', 'Relatórios') }}: escolha o período. Mostra faturamento, ticket médio, <b>curva ABC</b> dos produtos (A = os que fazem 80% da receita), clientes, formas de pagamento e <b>quem parou de comprar</b> há mais de 60 dias. Botão <b>Baixar em Excel</b>.</li></ul></section>
+
+<section class="box manual" id="marketing"><h2>9. Cupons, ajuda (FAQ), carrinhos abandonados, avaliações e métricas</h2><ul>
+<li>{{ ir('marketing', 'admin.cupons_lista', 'Cupons') }}: % ou valor fixo, compra mínima, validade, limite de usos e "uma vez por cliente". O desconto vale sobre os produtos (o frete não entra). Cancelados não contam como uso.</li>
+<li>{{ ir('marketing', 'admin.ajuda_lista', 'Ajuda (FAQ)') }}: as perguntas do botão "Ajuda" da loja. Links como <code>/conta/pedidos</code> viram links clicáveis.</li>
+<li>{{ ir('marketing', 'admin.carrinhos', 'Carrinhos abandonados') }}: o carrinho de quem está na conta fica guardado e volta em qualquer aparelho. Se ficar parado pelas horas configuradas (padrão 24), o cliente recebe um e-mail com os produtos e o link para finalizar. É um lembrete por carrinho; outro só se o carrinho mudar e depois de 7 dias. Carrinho parado há mais de 7 dias, produto sem estoque, e-mail não confirmado e quem pediu para parar (pelo link do e-mail ou em Conta › Privacidade) ficam de fora. O envio automático roda 3 vezes por dia pela tarefa do GitHub (mesmos segredos do backup); dá também para enviar pelo botão. A página mostra os carrinhos dos últimos 7 dias e os pedidos recuperados (fechados até 7 dias depois do lembrete).</li>
+<li>{{ ir('marketing', 'admin.avaliacoes_lista', 'Avaliações') }}: quem comprou (pedido pago ou enviado) dá nota de 1 a 5 e comenta, na página do produto (o e-mail de entrega e a página do pedido têm o link "Avaliar"). Nada aparece antes de você <b>Publicar</b>; dá para responder em público. A média aparece no produto e vai para o Google (estrelas na busca). Recuse só o ofensivo, propaganda ou fora do assunto.</li>
+<li>{{ ir('marketing', 'admin.metricas', 'Métricas (Google)') }}: cole o ID de medição do Google Analytics (G-...). A loja passa a mostrar o aviso de cookies; só quem aceita é medido. São medidas as páginas da loja e as compras (sem dados pessoais); conta e painel ficam de fora. Vazio desliga.</li></ul></section>
+
+<section class="box manual" id="config"><h2>10. Regras, frete, backup e equipe (acesso total)</h2><ul>
+<li>{{ ir('total', 'admin.frete_lista', 'Frete') }}: por faixa de CEP, por estado ou padrão (a mais específica vence), com valor fixo, valor por kg, grátis acima de um valor e prazo. Use <b>Simular frete</b> para conferir.</li>
+<li><b>Correios e transportadoras (Melhor Envio)</b>, na mesma tela: com o token no Render, ligue, informe o CEP de onde sai a mercadoria e marque os serviços (ex.: PAC e SEDEX). Na finalização, o cliente vê as opções com preço e prazo e escolhe uma; a regra da tabela também aparece, se houver. Cadastre as <b>medidas da embalagem</b> e o <b>peso</b> de cada produto (Produtos › Editar) para a cotação sair certa; sem medidas, vale a caixa padrão. O pedido guarda o serviço escolhido (ex.: Correios SEDEX).</li>
+<li>{{ ir('total', 'admin.backup_pagina', 'Backup e espaço') }}: baixar e restaurar backup, e o <b>espaço usado no banco</b> (aviso em Vendas acima de 80%). <b>Comprimir agora</b> reduz fotos antigas.</li>
+<li>{{ ir('total', 'admin.equipe', 'Equipe') }}: convide pessoas para o painel escolhendo as áreas (Vendas, Pedidos, Produtos, Clientes, Cupons/FAQ) ou acesso total. Cada uma recebe um link para criar a senha (vale 7 dias). Os avisos por e-mail vão para quem cuida de cada área.</li></ul></section>
+
+<section class="box manual" id="seguranca"><h2>11. Segurança do painel</h2><ul>
+<li>O endereço do painel é secreto (variável <code>ADMIN_PATH</code>). Não divulgue.</li>
+<li><b>Verificação em duas etapas</b> em {{ ir('livre', 'admin.conta', 'Minha conta') }}: guarde os <b>códigos de recuperação</b> longe do celular.</li>
+<li>Perdeu o celular e os códigos? No Render, crie a variável <code>ADMIN_2FA_DESLIGADO=1</code>, entre só com a senha, ajuste em Minha conta e <b>apague a variável</b> depois.</li>
+<li>5 senhas ou códigos errados bloqueiam o login por 10 minutos.</li>
+<li>Quem sai da equipe: remova em Equipe (o acesso acaba na hora).</li></ul></section>
+
+<section class="box manual" id="cliente-ve"><h2>12. O que o cliente vê e faz</h2><ul>
+<li>Preços só aparecem para quem entrou na conta (CPF ou CNPJ). Empresa aprovada vê o desconto dela e pode pagar no faturado.</li>
+<li>Busca com sugestões, filtros (com estoque, ofertas, faixa de preço) e <b>pedido rápido</b> por código.</li>
+<li>No carrinho: cupom, frete por CEP, adicionar por código, atualizar tudo de uma vez, esvaziar e salvar como lista.</li>
+<li>Em Minha conta: pedidos (alterar quantidades enquanto aguarda pagamento, cancelar, comprar novamente, baixar em Excel), <b>Comprar de novo</b>, <b>Minhas listas</b>, <b>Notas e boletos</b>, <b>Endereços</b> (matriz, filiais, obras), <b>Equipe</b> (empresa) e privacidade (baixar ou excluir os dados, pela LGPD).</li></ul></section>
+
+<section class="box manual" id="render"><h2>13. Configurações no Render (Environment)</h2>
+<p class="mute">Valores secretos são digitados direto no Render, nunca em conversas ou e-mails.</p>
+<div style="overflow-x:auto"><table>
+<tr><th>Variável</th><th>Para que serve</th></tr>
+<tr><td><code>SITE_URL</code></td><td>Endereço oficial (ex.: https://loja-exemplo.com.br): links dos e-mails, Google e redirecionamento do endereço do Render.</td></tr>
+<tr><td><code>SECRET_KEY</code></td><td>Chave secreta do site (sessões e links de e-mail). Não troque à toa: desconecta todo mundo.</td></tr>
+<tr><td><code>ADMIN_PATH</code></td><td>Endereço secreto do painel.</td></tr>
+<tr><td><code>BREVO_API_KEY</code>, <code>MAIL_FROM</code></td><td>Envio de e-mails (confirmação, senha, pedidos, convites).</td></tr>
+<tr><td><code>EFI_*</code>, <code>PIX_KEY</code>, <code>PIX_NAME</code>, <code>PIX_CITY</code></td><td>Pix automático pela Efí ou Pix com QR estático.</td></tr>
+<tr><td><code>NFE_CERTIFICADO</code>, <code>NFE_CERTIFICADO_SENHA</code></td><td>Certificado digital A1 da empresa para a NF-e (o arquivo vai em Secret Files; a variável é o caminho, ex.: /etc/secrets/certificado.pfx).</td></tr>
+<tr><td><code>BACKUP_SENHA</code>, <code>TAREFAS_TOKEN</code></td><td>Senha que protege o backup semanal enviado por e-mail e o código que o GitHub usa para pedir o envio toda segunda (o mesmo valor vai nos segredos do GitHub, com <code>SITE_URL</code>).</td></tr>
+<tr><td><code>NFE_PROVEDOR</code></td><td><code>sefaz</code> (padrão, direto na SEFAZ) ou <code>api</code> quando houver um provedor de emissão configurado (com <code>NFE_API_URL</code> e <code>NFE_API_TOKEN</code>).</td></tr>
+<tr><td><code>WHATSAPP_NUMBER</code></td><td>Botões de WhatsApp (só números, ex.: 5511999998888).</td></tr>
+<tr><td><code>MELHOR_ENVIO_TOKEN</code>, <code>MELHOR_ENVIO_CONTATO</code></td><td>Cotação de frete e etiquetas dos Correios e transportadoras pelo Melhor Envio (token com as permissões shipping-calculate e, para etiquetas, cart-read, cart-write, shipping-checkout, shipping-generate, shipping-print, shipping-tracking e shipping-cancel; e um e-mail técnico). <code>MELHOR_ENVIO_SANDBOX=1</code> usa o ambiente de testes. Ligue e escolha os serviços em Frete.</td></tr>
+<tr><td><code>MELHOR_ENVIO_SECRET</code></td><td>Opcional: secret do aplicativo do Melhor Envio (Área Dev) para receber os avisos de etiqueta na hora, cadastrando o webhook <code>https://seu-site/webhooks/melhor-envio</code> no aplicativo. Sem ele, o rastreio é conferido pela tarefa automática.</td></tr>
+<tr><td><code>TWILIO_*</code></td><td>Confirmação de celular por SMS (opcional, pago).</td></tr>
+<tr><td><code>GOOGLE_SITE_VERIFICATION</code></td><td>Verificação do Google Search Console.</td></tr>
+<tr><td><code>CLIENTE_SESSAO_MAX_DIAS</code></td><td>Depois de quantos dias do login o cliente precisa entrar de novo na loja (padrão 30). Limita o uso de uma sessão esquecida aberta ou copiada.</td></tr>
+<tr><td><code>LIMITE_BANCO_MB</code></td><td>Espaço do plano do banco em MB (padrão 512, o Neon grátis). Ajuste se mudar de plano. Acima de 80%, os donos recebem um e-mail.</td></tr>
+<tr><td><code>ADMIN_2FA_DESLIGADO</code></td><td>Só em emergência (perdeu o celular). Apague depois.</td></tr>
+</table></div>
+<p class="mute">Testes automáticos: a cada envio para o GitHub, os testes rodam na aba <b>Actions</b>. Com "Auto-Deploy: After CI Checks Pass" no Render, o site só é publicado se passarem.</p></section>
+{% endblock %}

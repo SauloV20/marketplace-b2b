@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf" content="{{ csrf_token() }}">
+<title>{% block title %}Marketplace B2B{% endblock %}</title>
+{% if nao_indexar is defined and nao_indexar %}<meta name="robots" content="noindex, nofollow">{% endif %}
+{% if google_verificacao and request.endpoint == 'shop.index' %}<meta name="google-site-verification" content="{{ google_verificacao }}">{% endif %}
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block head %}{% endblock %}
+</head><body>{% block body %}{% endblock %}
+{% if request.blueprint != 'admin' %}<footer class="rodape"><div class="wrap"><span>© Marketplace B2B</span>
+<a href="{{ url_for('shop.privacidade') }}">Política de Privacidade</a><a href="{{ url_for('shop.termos') }}">Termos de Uso</a>
+{% if whatsapp_loja %}<a href="https://wa.me/{{ whatsapp_loja }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}{% if ga_id %}<button type="button" class="link-rodape" data-cookies-abrir>Cookies</button>{% endif %}</div>
+{% if empresa_loja and empresa_loja.empresa_razao_social %}<div class="wrap rodape-empresa">{{ empresa_loja.empresa_razao_social }}{% if empresa_loja.empresa_cnpj %} · CNPJ {{ empresa_loja.empresa_cnpj }}{% endif %}{% if empresa_loja.empresa_endereco %} · {{ empresa_loja.empresa_endereco }}{% endif %}{% if empresa_loja.empresa_email_privacidade %} · <a href="mailto:{{ empresa_loja.empresa_email_privacidade }}">{{ empresa_loja.empresa_email_privacidade }}</a>{% endif %}</div>{% endif %}</footer>{% endif %}
+{% if atendente_ligado %}{% include "shop/_atendente.html" %}{% elif perguntas_ajuda %}{% include "shop/_ajuda.html" %}{% endif %}
+{% if ga_id %}<div class="aviso-cookies" id="aviso-cookies" data-ga="{{ ga_id }}"{% if ga_compra is defined and ga_compra %} data-ga-compra="{{ ga_compra|tojson|forceescape }}"{% endif %} role="region" aria-label="Aviso de cookies" hidden>
+<p>Usamos cookies do Google Analytics para entender como o site é usado e melhorar a loja. Eles só são ativados se você aceitar. <a class="link" href="{{ url_for('shop.privacidade') }}#cookies">Saiba mais</a></p>
+<div class="acts-row"><button type="button" class="btn" data-cookies="sim">Aceitar</button><button type="button" class="btn ghost" data-cookies="nao">Recusar</button></div></div>
+<script src="{{ url_for('static', filename='cookies.js') }}"></script>{% endif %}
+<script src="{{ url_for('static', filename='acoes.js') }}"></script>
+{% block scripts %}{% endblock %}</body></html>

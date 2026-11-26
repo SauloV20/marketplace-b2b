@@ -1,0 +1,16 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Devoluções e trocas</h1>
+<div class="box"><p>O cliente pede em <b>Meus pedidos</b>, escolhendo os produtos, as quantidades e o motivo. Você recebe um e-mail, aprova (com as instruções de envio) ou recusa, marca os produtos como recebidos (eles podem voltar ao estoque) e conclui. Na devolução, concluir registra o reembolso no Financeiro; no cartão pela Efí, o estorno é feito direto na Efí.</p>
+<p class="mute">A nota fiscal de devolução, quando for preciso, é emitida pelo emissor de NF-e.</p></div>
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Prazo para pedir pelo site (dias depois da entrega; 0 = só falando com o Marketplace B2B)<input name="dias" type="number" min="0" max="365" value="{{ dias }}" required></label>
+<div class="acts-row wide" style="margin:0"><button class="btn ghost">Salvar</button></div></form>
+<p class="acts-row">{% for k, v in [('abertas', 'Em andamento'), ('concluida', 'Concluídas'), ('recusada', 'Recusadas'), ('todas', 'Todas')] %}<a class="{{ 'btn' if filtro == k else 'btn ghost' }}" href="{{ url_for('admin.devolucoes_lista', status=k) }}">{{ v }}</a>{% endfor %}</p>
+<div class="box" style="overflow-x:auto">{% if lista %}<table><thead><tr><th>#</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Itens</th><th>Situação</th><th>Pedida em</th></tr></thead><tbody>
+{% for d in lista %}<tr><td><a class="link" href="{{ url_for('admin.devolucao', did=d.id) }}">{{ d.id }}</a></td><td><a class="link" href="{{ url_for('admin.pedido', oid=d.order_id) }}">#{{ d.order_id }}</a></td>
+<td>{{ d.order.razao_social or d.order.customer_name }}<br><small class="mute">{{ d.pedido_por }}</small></td><td>{{ tipos[d.tipo] }}</td>
+<td>{% for i in itens(d) %}{{ i.qtd }}× {{ i.nome }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+<td><span class="tag {{ 'off' if d.status in ('solicitada', 'recusada') }}">{{ status[d.status] }}</span></td><td>{{ d.criado_em|hora_br }}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p class="mute">Nada por aqui.</p>{% endif %}</div>
+{% endblock %}

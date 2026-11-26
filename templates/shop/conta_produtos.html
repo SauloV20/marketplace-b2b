@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Comprar de novo · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Comprar de novo</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% if itens %}
+<p class="mute">Tudo o que você já comprou, do mais recente para o mais antigo. Marque os produtos, ajuste as quantidades e mande para o carrinho de uma vez.</p>
+<form method="post" class="box recompra"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<div style="overflow-x:auto"><table>
+<tr><th><span class="sr">Marcar</span></th><th>Produto</th><th>Última compra</th><th>Preço atual</th><th>Quantidade</th></tr>
+{% for i in itens %}{% set p = i.p %}{% set ok = p.active and disponivel(p) %}
+<tr class="{{ '' if ok else 'linha-ruim' }}">
+<td>{% if ok %}<input type="checkbox" name="pid" value="{{ p.id }}" aria-label="Comprar {{ p.name }} de novo">{% endif %}</td>
+<td>{% if p.active %}<a class="link" href="{{ link_produto(p) }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}{% if p.codigo %}<br><small class="mute">Cód. {{ p.codigo }}</small>{% endif %}</td>
+<td>{{ i.ultima_data.strftime('%d/%m/%Y') if i.ultima_data }} · {{ i.ultima_qtd }} un<br><small class="mute">{{ i.total }} un em {{ i.vezes }} pedido(s)</small></td>
+<td>{% if ok %}{{ precos[p.id]|brl }}<small class="mute"> /un</small>{% elif not p.active %}<span class="tag off">fora de linha</span>{% else %}<span class="tag off">sem estoque</span>{% endif %}</td>
+<td>{% if ok %}<input name="qtd_{{ p.id }}" type="number" min="{{ p.qtd_minima }}" step="{{ 1 if p.fracionavel else p.multiplo }}" value="{{ i.ultima_qtd }}" inputmode="numeric" class="qtd-recompra" aria-label="Quantidade de {{ p.name }}">{% endif %}</td></tr>
+{% endfor %}</table></div>
+<p class="mute pequeno">A quantidade é ajustada ao mínimo, ao múltiplo e ao estoque de cada produto. O preço final (com faixas e o desconto da sua empresa) aparece no carrinho.</p>
+<button class="btn destaque">Adicionar marcados ao carrinho</button></form>
+{% else %}<p class="empty">Você ainda não tem compras. Quando fizer pedidos, os produtos aparecem aqui para comprar de novo com poucos cliques. <a class="link" href="/">Ver produtos</a></p>{% endif %}
+</main>
+{% endblock %}

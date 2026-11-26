@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Notas e boletos · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Notas e boletos</h1>
+{% include "shop/_conta_nav.html" %}
+<p class="mute">Todos os documentos que o Marketplace B2B anexou aos seus pedidos: notas fiscais, XML, boletos e outros.</p>
+{% if meses %}<form class="filtros box" method="get">
+<label>Mês<select name="mes"><option value="">Todos</option>{% for m in meses %}<option value="{{ m }}" {{ 'selected' if m == mes }}>{{ nome_do_mes(m)|capitalize }}</option>{% endfor %}</select></label>
+<label>Tipo<select name="tipo"><option value="">Todos</option>{% for k, n in tipos.items() %}<option value="{{ k }}" {{ 'selected' if k == tipo }}>{{ n }}</option>{% endfor %}</select></label>
+<button class="btn ghost">Filtrar</button>{% if mes or tipo %} <a class="link" href="{{ url_for('account.documentos') }}">Limpar</a>{% endif %}</form>{% endif %}
+{% if docs %}<div class="box" style="overflow-x:auto"><table>
+<tr><th>Data</th><th>Documento</th><th>Pedido</th><th></th></tr>
+{% for a in docs %}<tr><td>{{ a.criado_em.strftime('%d/%m/%Y') if a.criado_em }}</td>
+<td><b>{{ tipos[a.tipo] }}</b><br><small class="mute">{{ a.nome }} · {{ tamanho(a.tamanho) }}</small></td>
+<td><a class="link" href="{{ url_for('account.pedido_detalhe', oid=a.order_id) }}">#{{ a.order_id }}</a></td>
+<td><a class="btn ghost" href="{{ url_for('account.pedido_documento', oid=a.order_id, aid=a.id) }}">Baixar</a></td></tr>{% endfor %}
+</table></div>
+{% elif meses %}<p class="empty">Nenhum documento com esse filtro.</p>
+{% else %}<p class="empty">Ainda não há documentos. Quando o Marketplace B2B anexar a nota fiscal ou o boleto de um pedido, eles aparecem aqui (e você recebe um e-mail).</p>{% endif %}
+</main>
+{% endblock %}

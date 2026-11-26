@@ -1,0 +1,25 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Carrinhos abandonados</h1>
+<div class="box"><p>O carrinho de quem está na conta fica guardado e volta em qualquer aparelho. Se ele ficar parado, a loja manda <b>um lembrete por e-mail</b> com os produtos e o link para finalizar.</p>
+<p class="mute">Só recebe quem confirmou o e-mail e não pediu para parar (o e-mail tem o link "não quero mais lembretes"; o cliente também liga e desliga em Conta › Privacidade). Carrinhos parados há mais de {{ janela }} dias não recebem. Depois de um lembrete, outro só se o carrinho mudar e já tiverem passado {{ janela }} dias. Produtos desativados ou sem estoque ficam fora do e-mail.</p>
+{% if not tarefa %}<p class="msg">O envio automático usa a tarefa agendada do GitHub (a mesma do backup): configure <code>TAREFAS_TOKEN</code> no Render e os segredos <code>SITE_URL</code> e <code>TAREFAS_TOKEN</code> no GitHub. Enquanto isso, use o botão "Enviar lembretes agora".</p>{% endif %}</div>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Configuração</h2>
+<label class="wide"><span><input type="checkbox" name="ligado" {{ 'checked' if ligado }}> Mandar o lembrete do carrinho abandonado</span></label>
+<label>Mandar depois de quantas horas parado<input name="horas" type="number" min="1" max="{{ janela * 24 - 1 }}" value="{{ horas }}" required></label>
+<div class="acts-row wide" style="margin:0"><button class="btn ghost">Salvar</button>{% if ligado %}<button class="btn ghost" name="acao" value="enviar" formnovalidate>Enviar lembretes agora</button>{% endif %}</div></form>
+
+<div class="box"><h2>Últimos 30 dias</h2>
+<p>{{ lembretes }} lembrete(s) enviado(s) · <b>{{ recuperados }} pedido(s) recuperado(s)</b>{% if recuperados %}, somando {{ valor|brl }}{% endif %}.</p>
+<p class="mute pequeno">Recuperado: pedido fechado em até {{ janela }} dias depois do lembrete (cancelados não contam).</p></div>
+
+<div class="box"><h2>Carrinhos com produtos (últimos {{ janela }} dias)</h2>
+{% if abertos %}<div style="overflow-x:auto"><table><thead><tr><th>Cliente</th><th>Produtos</th><th>Parado desde</th><th>Lembrete</th></tr></thead><tbody>
+{% for c, produtos in abertos %}<tr><td>{{ c.user.name }}<br><small class="mute">{{ c.user.email }}</small></td>
+<td>{% for p, q in produtos[:4] %}{{ q }}× {{ p.name }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if produtos|length > 4 %}<br><small class="mute">e mais {{ produtos|length - 4 }}</small>{% endif %}{% if not produtos %}<small class="mute">produtos indisponíveis</small>{% endif %}</td>
+<td>{{ c.atualizado_em|hora_br }}</td>
+<td>{% if c.avisado_em %}{{ c.avisado_em|dia_br }}{% elif not c.user.lembrete_carrinho %}<small class="mute">pediu para não receber</small>{% elif not c.user.email_verified %}<small class="mute">e-mail não confirmado</small>{% else %}<small class="mute">ainda não</small>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="mute">Nenhum carrinho com produtos nos últimos {{ janela }} dias.</p>{% endif %}</div>
+{% endblock %}

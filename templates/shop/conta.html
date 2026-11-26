@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Minha conta · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Olá, {{ (membro.name if membro else cliente.name).split()[0] }}</h1>{% if membro %}<p class="mute">Comprando pela conta da {{ cliente.razao_social or cliente.name }} · {{ nome_papel(membro)|lower }}</p>{% endif %}
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% if not cliente.documento %}<div class="msg">Falta informar seu CPF ou CNPJ. <a class="link" href="{{ url_for('account.dados') }}">Completar cadastro</a></div>
+{% elif cliente.tipo == 'pj' and not cliente.empresa_aprovada %}<div class="msg">O cadastro da {{ cliente.razao_social }} está em análise. Enquanto isso, você já pode comprar com os preços de tabela; depois da aprovação, liberamos as condições de empresa (desconto e boleto faturado).</div>{% endif %}
+<div class="kpis">
+<div class="box kpi">Pedidos<b>{{ resumo.total }}</b></div>
+<div class="box kpi">Em aberto<b>{{ resumo.abertos }}</b></div>
+<div class="box kpi">Total em compras pagas<b>{{ resumo.gasto|brl }}</b></div></div>
+<section class="box condicoes"><h3>{{ 'Condições da ' ~ cliente.razao_social if empresa else 'Suas condições de compra' }}</h3>
+{% if empresa %}<ul>
+<li>Desconto sobre a tabela: <b>{{ cliente.desconto|num if cliente.desconto else '—' }}{{ '%' if cliente.desconto }}</b>{% if not cliente.desconto %} <small class="mute">(preços de tabela com as faixas por quantidade)</small>{% endif %}</li>
+<li>Boleto faturado: {% if prazos %}<b>{{ prazos|join(' ou ') }} dias</b>{% else %}<span class="mute">não liberado</span>{% endif %}</li>
+{% if prazos and cliente.limite_credito is not none %}<li>Limite de crédito do faturado: <b>{{ cliente.limite_credito|brl }}</b> · disponível agora: <b>{{ credito_livre|brl }}</b></li>{% endif %}
+<li>Pedido mínimo da loja: <b>{{ minimo|brl if minimo else 'sem mínimo' }}</b></li></ul>
+<p class="mute pequeno">Quer negociar outras condições? Fale com o Marketplace B2B ou peça um orçamento na finalização.</p>
+{% elif cliente.tipo == 'pj' %}<p>O cadastro da empresa está <b>em análise</b>. Depois de aprovado, o desconto e os prazos de boleto faturado liberados aparecem aqui.</p>
+<p class="mute">Pedido mínimo da loja: {{ minimo|brl if minimo else 'sem mínimo' }}.</p>
+{% else %}<ul><li>Preços de tabela, com desconto por quantidade (faixas na página de cada produto).</li>
+<li>Pedido mínimo da loja: <b>{{ minimo|brl if minimo else 'sem mínimo' }}</b></li></ul>
+<p class="mute pequeno">Compra pela empresa? Cadastre com o CNPJ para ter acesso a desconto e boleto faturado.</p>{% endif %}
+</section>
+{% if para_aprovar %}<section class="box aprovar"><h3>Aguardando sua aprovação ({{ para_aprovar|length }})</h3>
+{% for p in para_aprovar %}<div class="sum-row"><span><a class="link" href="{{ url_for('account.pedido_detalhe', oid=p.id) }}">Pedido #{{ p.id }}</a> <small class="mute">feito por {{ p.comprador_nome or p.customer_name }}</small></span><b>{{ p.total|brl }}</b></div>{% endfor %}</section>{% endif %}
+<h3 style="margin:24px 0 12px">Últimos pedidos</h3>
+{% for p in pedidos %}{% include "shop/_pedido_linha.html" %}
+{% else %}<p class="mute">Você ainda não fez pedidos. <a class="link" href="/">Ver produtos</a></p>{% endfor %}
+{% if resumo.total > 3 %}<a class="link" href="{{ url_for('account.pedidos') }}">Ver todos os pedidos</a>{% endif %}
+{% if avisos_chegada %}<section class="box" style="margin-top:24px"><h3>Avise-me quando chegar</h3>
+{% for a in avisos_chegada %}<div class="sum-row"><span><a class="link" href="{{ link_produto(a.product) }}">{{ a.product.name }}</a> <small class="mute">pedido em {{ a.criado_em.strftime('%d/%m/%Y') if a.criado_em }}</small></span>
+<form method="post" action="{{ url_for('shop.avise_me_alternar', pid=a.product_id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="voltar" value="{{ url_for('account.conta') }}"><button class="link">Cancelar aviso</button></form></div>{% endfor %}
+<p class="mute pequeno">Você recebe um e-mail quando cada um voltar ao estoque.</p></section>{% endif %}
+<section class="box" style="margin-top:24px"><h3>Meus dados</h3>
+<p>{{ cliente.email }}{% if cliente.documento %} · {{ 'CNPJ' if cliente.tipo == 'pj' else 'CPF' }} {{ fmt_doc(cliente.documento) }}{% endif %}</p><p class="mute">{{ cliente.phone or 'Telefone não informado' }} · {{ cliente.address or 'Endereço não informado' }}</p>
+<a class="link" href="{{ url_for('account.dados') }}">Editar dados e senha</a></section>
+</main>
+{% endblock %}

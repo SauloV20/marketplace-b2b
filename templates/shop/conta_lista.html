@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ lista.nome }} · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<a class="link" href="{{ url_for('account.listas_lista') }}">← Minhas listas</a>
+<h1 style="margin-top:12px">{{ lista.nome }}</h1>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% if linhas %}
+<form method="post" class="box"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<div style="overflow-x:auto"><table>
+<tr><th>Produto</th><th>Preço atual</th><th>Quantidade</th><th>Subtotal</th><th></th></tr>
+{% for l in linhas %}<tr class="{{ '' if l.ok else 'linha-ruim' }}">
+<td>{% if l.p.active %}<a class="link" href="{{ link_produto(l.p) }}">{{ l.p.name }}</a>{% else %}{{ l.p.name }}{% endif %}{% if l.p.codigo %}<br><small class="mute">Cód. {{ l.p.codigo }}</small>{% endif %}</td>
+<td>{% if l.ok %}{{ l.preco|brl }}<small class="mute"> /un</small>{% elif not l.p.active %}<span class="tag off">fora de linha</span>{% else %}<span class="tag off">sem estoque</span>{% endif %}</td>
+<td><input name="qtd_{{ l.item.id }}" type="number" min="0" value="{{ l.item.qtd }}" inputmode="numeric" class="qtd-recompra" aria-label="Quantidade de {{ l.p.name }}"></td>
+<td>{{ l.sub|brl if l.ok else '—' }}</td>
+<td><button class="link" name="acao" value="remover:{{ l.item.id }}" formnovalidate aria-label="Tirar {{ l.p.name }} da lista">Tirar</button></td></tr>{% endfor %}
+<tr><td colspan="3"><b>Total aproximado</b> <small class="mute">(os disponíveis; o carrinho ajusta mínimo e múltiplo)</small></td><td colspan="2"><b>{{ total|brl }}</b></td></tr>
+</table></div>
+<div class="lista-acoes"><button class="btn destaque" name="acao" value="carrinho">Mandar tudo ao carrinho</button>
+<button class="btn ghost" name="acao" value="salvar">Salvar quantidades</button></div>
+</form>
+{% else %}<p class="empty">Lista vazia. Abra um produto e use “Salvar em uma lista”, ou salve o seu carrinho como lista. <a class="link" href="/">Ver produtos</a></p>{% endif %}
+<div class="lista-acoes">
+<form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="renomear">
+<label class="sr" for="nome-lista">Novo nome</label><input id="nome-lista" name="nome" value="{{ lista.nome }}" maxlength="60" required><button class="btn ghost">Renomear</button></form>
+<form method="post" data-confirmar="Apagar esta lista? Os produtos não são afetados."><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="excluir"><button class="btn ghost perigo">Apagar lista</button></form>
+</div>
+</main>
+{% endblock %}

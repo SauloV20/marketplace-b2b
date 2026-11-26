@@ -1,0 +1,57 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Formação de preço</h1>
+<div class="box"><p>Para os produtos marcados como <b>preço calculado</b>, o preço sai do custo:</p>
+<p><b>preço = custo × (1 + markup) ÷ (1 − impostos e despesas da venda)</b></p>
+<ul class="lista-simples">
+<li><b>Custo</b>: preço de compra do fornecedor + IPI + ICMS-ST + frete da compra − créditos de impostos (em <a class="link" href="{{ url_for('admin.fornecedores') }}">Fornecedores</a>).</li>
+<li><b>Markup</b>: o quanto você ganha sobre o custo, já sem os impostos. Vale o do produto; sem ele, o da categoria; sem os dois, o padrão.</li>
+<li><b>Impostos e despesas da venda</b>: ICMS e adicional do estado de entrega + impostos federais + despesas da venda + custo da entrega própria (quando o estado é atendido com frota própria).</li>
+<li><b>Percentuais</b>: impostos e despesas que você cadastra com nome e %, para todos os produtos, uma categoria ou um produto (ex.: PIS 1,65%, comissão 3%). <a class="link" href="{{ url_for('admin.percentuais') }}">Cadastrar percentuais</a>.</li></ul>
+<p class="mute">O preço de tabela é o do estado da loja. Cliente de outro estado vê o preço ajustado pelo imposto do estado dele (pelo CEP do carrinho ou do endereço principal). Produtos com preço manual não mudam. Os valores são uma ajuda para formar preço: confirme as alíquotas com o seu contador.</p></div>
+
+{% if sem_custo %}<div class="msg">{{ sem_custo|length }} produto(s) com preço calculado estão sem preço de compra e mantêm o preço atual:
+{% for p in sem_custo[:10] %}<a class="link" href="{{ url_for('admin.produto_custo', pid=p.id) }}">{{ p.name }}</a>{{ ', ' if not loop.last }}{% endfor %}{% if sem_custo|length > 10 %}…{% endif %}</div>{% endif %}
+
+<form class="box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Loja</h2>
+<div class="f-grade">
+<label>Estado da loja (de onde sai a mercadoria)<select name="loja_uf" required><option value="">Escolha</option>{% for uf in ufs %}<option {{ 'selected' if v.get('loja_uf') == uf }}>{{ uf }}</option>{% endfor %}</select></label>
+<label>Impostos federais sobre a venda (%)<input name="imp_federais" inputmode="decimal" value="{{ v.get('imp_federais', '') }}" placeholder="PIS, COFINS, IRPJ, CSLL ou o DAS do Simples"></label>
+<label>Despesas da venda (%)<input name="despesas_venda" inputmode="decimal" value="{{ v.get('despesas_venda', '') }}" placeholder="comissão, taxa de cartão"></label>
+<label>Markup padrão (% sobre o custo)<input name="markup_padrao" inputmode="decimal" value="{{ v.get('markup_padrao', '') }}" placeholder="ex.: 35"></label>
+</div>
+
+<h2 style="margin-top:20px">Impostos e entrega por estado</h2>
+<p class="mute pequeno">ICMS da venda para cada estado (no estado da loja, a alíquota interna). <b>Vazio = igual ao estado da loja.</b> Adicional: DIFAL, FCP ou ST que você paga ao vender para lá. Entrega: com <b>frota própria</b>, o custo (% sobre a venda) entra no preço e o frete sai grátis no pedido; com <b>transportadora</b>, o frete é cobrado à parte pelas <a class="link" href="{{ url_for('admin.frete_lista') }}">regras de frete</a>.</p>
+<div style="overflow-x:auto"><table class="tabela-campos">
+<tr><th>Estado</th><th>ICMS %</th><th>Adicional %</th><th>Entrega</th><th>Custo da entrega própria %</th><th>Total da venda</th><th>R$ 100 de custo vira</th></tr>
+{% for l in linhas %}<tr><td><b>{{ l.uf }}</b>{% if l.uf == loja %} <small class="mute">(loja)</small>{% endif %}</td>
+<td><input name="icms_{{ l.uf }}" inputmode="decimal" value="{{ v.get('icms_' ~ l.uf, '') }}" aria-label="ICMS {{ l.uf }}"></td>
+<td><input name="adicional_{{ l.uf }}" inputmode="decimal" value="{{ v.get('adicional_' ~ l.uf, '') }}" aria-label="Adicional {{ l.uf }}"></td>
+<td><select name="entrega_{{ l.uf }}" aria-label="Entrega {{ l.uf }}">{% for k, nome in entregas.items() %}<option value="{{ k }}" {{ 'selected' if v.get('entrega_' ~ l.uf, 'transportadora') == k }}>{{ nome }}</option>{% endfor %}</select></td>
+<td><input name="custo_entrega_{{ l.uf }}" inputmode="decimal" value="{{ v.get('custo_entrega_' ~ l.uf, '') }}" aria-label="Custo da entrega própria {{ l.uf }}"></td>
+<td>{{ l.venda|num }}%</td><td>{{ l.exemplo|brl if l.exemplo is not none else '—' }}</td></tr>{% endfor %}
+</table></div>
+<p class="mute pequeno">As duas últimas colunas mostram o que está salvo (com o markup padrão).</p>
+
+{% if categorias %}<h2 style="margin-top:20px">Markup por categoria</h2>
+<p class="mute pequeno">Vazio = markup padrão. Um produto pode ter o seu próprio markup em Custo e preço.</p>
+<div class="f-grade">{% for c in categorias %}<label>{{ c.name }} (%)<input name="markup_cat_{{ c.id }}" inputmode="decimal" value="{{ v.get('markup_cat_' ~ c.id, '') }}"></label>{% endfor %}</div>{% endif %}
+<div class="acts-row"><button class="btn">Salvar e recalcular preços</button>
+<button class="btn ghost" name="acao" value="icms_interestadual" formnovalidate data-confirmar="Preencher o ICMS de todos os outros estados com a alíquota interestadual (7% ou 12%)? O que estiver digitado nos outros estados será trocado.">Preencher ICMS interestadual</button></div>
+</form>
+
+<form class="f box" method="post" id="margem"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="margem">
+<h2>Proteção de margem</h2>
+<p class="wide mute pequeno">Margem = (preço − custo − impostos e despesas da venda) ÷ preço. Abaixo do mínimo (ou abaixo do custo, com mínimo 0), o painel avisa na edição do produto, no pedido, no orçamento e no painel do dia. Em <b>bloquear</b>, a loja também recusa o preço editado no pedido, a aprovação do orçamento e o cupom que deixariam a venda abaixo do mínimo. Produto sem custo cadastrado não é avaliado.</p>
+<label>Proteção<select name="margem_modo">{% for k, n in margem_modos.items() %}<option value="{{ k }}" {{ 'selected' if k == margem_modo }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Margem mínima (%)<input name="margem_minima" inputmode="decimal" value="{{ margem_minima|num }}" placeholder="0 = só abaixo do custo"></label>
+<div><button class="btn ghost">Salvar</button></div></form>
+
+<section class="box"><h2>Produtos com preço calculado ({{ automaticos|length }})</h2>
+{% if automaticos %}<div style="overflow-x:auto"><table><tr><th>Produto</th><th>Preço de tabela{% if loja %} ({{ loja }}){% endif %}</th><th></th></tr>
+{% for p in automaticos %}<tr><td>{{ p.name }}{% if p.codigo %} <small class="mute">{{ p.codigo }}</small>{% endif %}</td><td>{{ p.price|brl }}</td><td><a class="btn ghost" href="{{ url_for('admin.produto_custo', pid=p.id) }}">Custo e preço</a></td></tr>{% endfor %}
+</table></div>
+{% else %}<p class="mute">Nenhum ainda. {% if not fornecedores %}Comece cadastrando um <a class="link" href="{{ url_for('admin.fornecedores') }}">fornecedor</a> e os preços de compra; depois{% else %}Abra{% endif %} um produto em <b>Custo e preço</b> e marque “preço calculado”.</p>{% endif %}</section>
+{% endblock %}

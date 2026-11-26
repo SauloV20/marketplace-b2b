@@ -1,0 +1,3 @@
+{# Cupom e frete no resumo de um pedido gravado (painel, conta do cliente e página do pedido). #}
+{% if o.desconto %}<div class="sum-row"><span>Cupom {{ o.cupom }}</span><b class="gratis">-{{ o.desconto|brl }}</b></div>{% endif %}
+{% if o.frete_combinar %}<div class="sum-row"><span>Frete</span><b>A combinar</b></div>{% elif o.cep %}<div class="sum-row"><span>Frete{% set rot_frete = [o.frete_servico or '', o.frete_prazo or '']|select|join(' · ') %}{% if rot_frete %} <small class="mute">({{ rot_frete }})</small>{% endif %}</span><b>{{ 'Grátis' if not o.frete else o.frete|brl }}</b></div>{% endif %}

@@ -1,0 +1,25 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Ajuda (perguntas frequentes)</h1>
+<p class="mute">Aparecem no botão <b>Ajuda</b>, no canto de todas as páginas da loja{% if ia %} (agora o atendente com IA está ligado e aparece no lugar delas){% endif %}. Nas respostas, caminhos como /cadastro ou /conta/pedidos e links https:// viram links clicáveis.</p>
+{% if not perguntas %}
+<div class="box"><p>Nenhuma pergunta cadastrada: a loja está mostrando as <b>{{ padrao|length }} perguntas padrão</b>. Carregue-as para poder editar, ou crie as suas abaixo.</p>
+<form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="padrao"><button class="btn">Carregar perguntas padrão para editar</button></form></div>
+{% endif %}
+{% for p in perguntas %}
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="pid" value="{{ p.id }}">
+<label class="wide">Pergunta<input name="pergunta" value="{{ p.pergunta }}" maxlength="200" required></label>
+<label class="wide">Resposta<textarea name="resposta" rows="3" maxlength="3000" required>{{ p.resposta }}</textarea></label>
+<label><span><input type="checkbox" name="ativo" {{ 'checked' if p.ativo }}> Aparece na loja</span></label>
+<div class="acts wide"><button class="btn">Salvar</button>
+<button class="btn ghost" formaction="{{ url_for('admin.ajuda_mover', pid=p.id) }}" name="para" value="cima" formnovalidate {{ 'disabled' if loop.first }} aria-label="Subir">↑</button>
+<button class="btn ghost" formaction="{{ url_for('admin.ajuda_mover', pid=p.id) }}" name="para" value="baixo" formnovalidate {{ 'disabled' if loop.last }} aria-label="Descer">↓</button>
+<button class="btn ghost" formaction="{{ url_for('admin.ajuda_excluir', pid=p.id) }}" formnovalidate data-confirmar="Excluir esta pergunta?">Excluir</button></div>
+</form>
+{% endfor %}
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Nova pergunta</h2>
+<label class="wide">Pergunta<input name="pergunta" maxlength="200" required placeholder="Ex.: Vocês entregam em todo o Brasil?"></label>
+<label class="wide">Resposta<textarea name="resposta" rows="3" maxlength="3000" required></textarea></label>
+<div><button class="btn">Adicionar pergunta</button></div></form>
+{% endblock %}

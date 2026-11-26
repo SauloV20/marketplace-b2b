@@ -1,0 +1,3 @@
+{% if opcoes %}<fieldset class="frete-opcoes"><legend>Entrega</legend>
+{% for o in opcoes %}<label class="opt frete-opt"><input type="radio" name="frete_opcao" value="{{ o.codigo }}" {{ 'checked' if calculo and calculo.codigo == o.codigo }} data-valor="{{ 'Grátis' if o.gratis else o.valor|brl }}" data-gratis="{{ '1' if o.gratis else '' }}" data-prazo="{{ o.prazo }}" data-total="{{ (base + o.valor)|brl }}"><span><b>{{ o.nome }}</b><small>{{ 'Grátis' if o.gratis else o.valor|brl }}{% if o.prazo %} · {{ o.prazo }}{% endif %}</small></span></label>
+{% endfor %}</fieldset>{% endif %}

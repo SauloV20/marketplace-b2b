@@ -1,0 +1,41 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Relatório de vendas</h1>
+<form class="busca-pedidos box" method="get">
+{% include "admin/_filtro_periodo.html" %}
+<button class="btn">Ver</button>
+<a class="btn ghost" href="{{ url_for('admin.relatorios_planilha', **args) }}">Baixar em Excel</a></form>
+<p class="mute">De {{ r.de.strftime('%d/%m/%Y') }} a {{ r.ate.strftime('%d/%m/%Y') }} · {{ situacoes[r.situacao]|lower }} (cancelados e orçamentos não entram). Para usar datas, deixe o período em “Personalizado” ou só preencha De/Até.</p>
+
+<div class="kpis">
+<div class="box kpi">Faturamento<b>{{ r.total|brl }}</b></div>
+<div class="box kpi">Pedidos<b>{{ r.pedidos }}</b></div>
+<div class="box kpi">Ticket médio<b>{{ r.ticket|brl }}</b></div>
+<div class="box kpi">Itens vendidos<b>{{ r.itens }}</b></div>
+<div class="box kpi">Descontos (cupons)<b>{{ r.descontos|brl }}</b></div>
+<div class="box kpi">Frete cobrado<b>{{ r.fretes|brl }}</b></div></div>
+
+<div class="box" style="overflow-x:auto"><h2>Produtos <small class="mute">curva ABC: A = produtos que somam 80% da receita</small></h2>
+{% if r.produtos %}<table><tr><th>Curva</th><th>Produto</th><th>Qtd</th><th>Receita</th><th>%</th><th>Pedidos</th></tr>
+{% for x in r.produtos %}<tr><td><span class="tag curva-{{ x.classe|lower }}">{{ x.classe }}</span></td><td>{% if x.p %}<a class="link" href="{{ url_for('admin.edit_product', pid=x.p.id) }}">{{ x.p.name }}</a>{% if x.p.codigo %} <small class="mute">{{ x.p.codigo }}</small>{% endif %}{% else %}(excluído){% endif %}</td>
+<td>{{ x.qtd }}</td><td>{{ x.receita|brl }}</td><td>{{ x.pct|uma_casa }}%</td><td>{{ x.pedidos }}</td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Nenhuma venda no período.</p>{% endif %}</div>
+
+<div class="charts">
+<div class="box" style="overflow-x:auto"><h2>Clientes</h2>
+{% if r.clientes %}<table><tr><th>Cliente</th><th>Pedidos</th><th>Total</th></tr>
+{% for x in r.clientes[:50] %}<tr><td>{% if x.u %}<a class="link" href="{{ url_for('admin.cliente', uid=x.u.id) }}">{{ nome(x.u) }}</a>{% else %}{{ nome(x.u) }}{% endif %}</td><td>{{ x.pedidos }}</td><td>{{ x.total|brl }}</td></tr>{% endfor %}</table>
+{% if r.clientes|length > 50 %}<p class="mute pequeno">Mostrando os 50 maiores; a lista completa vai no Excel.</p>{% endif %}
+{% else %}<p class="mute">Nenhuma venda no período.</p>{% endif %}</div>
+<div class="box" style="overflow-x:auto"><h2>Formas de pagamento</h2>
+{% if r.pagamentos %}<table><tr><th>Forma</th><th>Pedidos</th><th>Total</th></tr>
+{% for m, n, t in r.pagamentos %}<tr><td>{{ metodos.get(m, m) }}</td><td>{{ n }}</td><td>{{ t|brl }}</td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Nenhuma venda no período.</p>{% endif %}</div></div>
+
+<div class="box" style="overflow-x:auto"><h2>Pararam de comprar <small class="mute">já compraram, mas sem pedido há mais de {{ dias_inativo }} dias</small></h2>
+{% if r.inativos %}<table><tr><th>Cliente</th><th>Contato</th><th>Último pedido</th><th>Pedidos</th><th>Total comprado</th></tr>
+{% for x in r.inativos %}<tr><td><a class="link" href="{{ url_for('admin.cliente', uid=x.u.id) }}">{{ nome(x.u) }}</a></td><td><small>{{ x.u.email }}{% if x.u.phone %}<br>{{ x.u.phone }}{% endif %}</small></td>
+<td>{{ x.ultimo|dia_br }}<br><small class="mute">há {{ x.dias }} dias</small></td><td>{{ x.pedidos }}</td><td>{{ x.total|brl }}</td></tr>{% endfor %}</table>
+<p class="mute pequeno">Uma ligação ou um cupom para esses clientes costuma trazer pedidos de volta.</p>
+{% else %}<p class="mute">Ninguém parado há mais de {{ dias_inativo }} dias.</p>{% endif %}</div>
+{% endblock %}

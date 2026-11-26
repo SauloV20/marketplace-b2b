@@ -1,0 +1,37 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Compras</h1>
+<div class="box"><p>A nota do fornecedor chegou? Use <a class="link" href="{{ url_for('admin.notas_compra') }}">Notas de compra</a>: a compra sai pronta a partir do XML.</p>
+<p>Peça mercadoria aos fornecedores e dê <b>entrada no estoque</b> quando chegar. No recebimento, o estoque sobe, o <b>custo médio</b> é recalculado, o preço de compra do fornecedor pode ser atualizado e as <b>contas a pagar</b> são criadas no Financeiro.</p></div>
+
+<section class="box" style="overflow-x:auto"><h2>Sugestão de compra</h2>
+<form method="get" class="acts-row" style="margin:0 0 10px"><label>Cobrir as vendas de<select name="meses" data-enviar-ao-mudar>{% for m in range(1, 7) %}<option value="{{ m }}" {{ 'selected' if m == cobertura }}>{{ m }} {{ 'mês' if m == 1 else 'meses' }}</option>{% endfor %}</select></label></form>
+<p class="mute pequeno">Produtos em que o estoque mais o que já está em compra não chega ao alerta de estoque mais {{ cobertura }} {{ 'mês' if cobertura == 1 else 'meses' }} de vendas (média dos últimos 90 dias). A quantidade sai arredondada para a embalagem.</p>
+{% for forn, linhas in sugestao.items() %}
+<form method="post" style="margin-top:14px"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="sugestao">
+<h3>{% if forn %}{{ forn.nome }}{% else %}Sem fornecedor cadastrado{% endif %}</h3>
+<table class="tabela-campos"><tr><th>Produto</th><th class="num">Estoque</th><th class="num">Alerta</th><th class="num">Vende/mês</th><th class="num">Em compra</th><th>Comprar</th>{% if forn %}<th class="num">Preço</th>{% endif %}</tr>
+{% for l in linhas %}<tr><td>{{ l.p.name }}{% if l.p.codigo %} <small class="mute">{{ l.p.codigo }}</small>{% endif %}</td><td class="num">{{ l.p.stock }}</td><td class="num">{{ l.p.estoque_alerta or '—' }}</td>
+<td class="num">{{ l.mensal|uma_casa }}</td><td class="num">{{ l.em_compra or '—' }}</td>
+<td>{% if forn %}<input name="qtd_{{ l.p.id }}" inputmode="numeric" value="{{ l.sugerido }}" aria-label="Comprar {{ l.p.name }}" style="max-width:100px">{% else %}{{ l.sugerido }}{% endif %}</td>
+{% if forn %}<td class="num">{{ l.preco|brl if l.preco is not none else '—' }}</td>{% endif %}</tr>{% endfor %}</table>
+{% if forn %}<input type="hidden" name="fornecedor_id" value="{{ forn.id }}"><div class="acts-row"><button class="btn">Criar pedido de compra para {{ forn.nome }}</button></div>
+{% else %}<p class="mute pequeno">Cadastre o fornecedor e o preço de compra destes produtos em <a class="link" href="{{ url_for('admin.fornecedores') }}">Fornecedores</a>.</p>{% endif %}
+</form>
+{% else %}<p class="mute">Nada para repor agora. (Para os produtos entrarem aqui, preencha o “avisar quando o estoque chegar a” no cadastro ou tenha vendas recentes.)</p>{% endfor %}
+</section>
+
+<section class="box" style="overflow-x:auto"><h2>Pedidos de compra</h2>
+<div class="chips">{% for k, n in [('abertas', 'Em aberto')] + situacoes.items()|list + [('todas', 'Todas')] %}<a class="chip {{ 'on' if status == k }}" href="{{ url_for('admin.compras_lista', status=k) }}">{{ n }}</a>{% endfor %}</div>
+{% if lista %}<table><tr><th>#</th><th>Fornecedor</th><th>Situação</th><th>Criado</th><th>Previsão</th><th class="num">Total</th><th></th></tr>
+{% for c in lista %}<tr><td>{{ c.id }}</td><td>{{ c.fornecedor.nome }}</td><td><span class="tag {{ 'off' if c.status == 'cancelado' }}">{{ situacoes[c.status] }}</span></td>
+<td>{{ c.criado_em|hora_br }}</td><td>{{ c.previsao.strftime('%d/%m/%Y') if c.previsao else '—' }}</td><td class="num">{{ totais(c, c.status == 'recebido').total|brl }}</td>
+<td><a class="btn ghost" href="{{ url_for('admin.compra', cid=c.id) }}">Abrir</a></td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Nenhum pedido de compra nesta situação.</p>{% endif %}</section>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="nova">
+<h2>Novo pedido de compra</h2>
+{% if fornecedores %}<label>Fornecedor<select name="fornecedor_id" required>{% for f in fornecedores %}<option value="{{ f.id }}">{{ f.nome }}</option>{% endfor %}</select></label>
+<div><button class="btn">Criar</button></div>
+{% else %}<p class="wide mute">Cadastre um fornecedor primeiro em <a class="link" href="{{ url_for('admin.fornecedores') }}">Fornecedores</a>.</p>{% endif %}</form>
+{% endblock %}

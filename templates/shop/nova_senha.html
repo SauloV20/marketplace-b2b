@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Conta · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<form class="login box auth" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><h2>{% if convite is defined %}Bem-vindo, {{ convite.name.split()[0] }}{% else %}Criar nova senha{% endif %}</h2>
+{% if convite is defined %}<p class="mute">Crie a senha para comprar pela conta da {{ convite.titular.razao_social or convite.titular.name }} com o e-mail <b>{{ convite.email }}</b>.</p>{% endif %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% include "shop/_senha_nova.html" %}
+<button class="btn">Salvar nova senha</button></form>
+{% endblock %}

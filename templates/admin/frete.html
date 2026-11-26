@@ -1,0 +1,65 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Frete</h1>
+<div class="box"><p>O cliente informa o CEP no carrinho e na finalização, e o frete entra no total do pedido (e no Pix).
+A regra <b>mais específica</b> vence: <b>faixa de CEP</b> &gt; <b>estados</b> &gt; <b>padrão</b> (sem CEP nem estado, vale para o resto do Brasil).
+Sem nenhuma regra para o CEP, o frete fica <b>a combinar</b>, como antes.</p>
+<p class="mute">Valor = valor fixo + valor por kg × peso do carrinho (arredondado para cima, em kg inteiros). O peso de cada produto fica em Produtos → Editar. Com "grátis acima de", o frete zera quando os produtos somam esse valor.</p></div>
+
+{% for r in regras %}
+<form class="f box regra" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="rid" value="{{ r.id }}">
+<h2>{{ r.nome }} <small class="mute">{% if r.cep_de %}CEP {{ fmt_cep('%08d'|format(r.cep_de)) }} a {{ fmt_cep('%08d'|format(r.cep_ate)) }}{% elif r.ufs %}{{ r.ufs|replace(',', ', ') }}{% else %}padrão (resto do Brasil){% endif %}</small>{% if not r.ativo %} <span class="tag off">desativada</span>{% endif %}</h2>
+<label>Nome<input name="nome" value="{{ r.nome }}" maxlength="80" required></label>
+<label>Estados (siglas)<input name="ufs" value="{{ r.ufs|replace(',', ', ') }}" placeholder="SP, RJ, MG"></label>
+<label>CEP de<input name="cep_de" value="{{ fmt_cep('%08d'|format(r.cep_de)) if r.cep_de else '' }}" placeholder="01000-000"></label>
+<label>CEP até<input name="cep_ate" value="{{ fmt_cep('%08d'|format(r.cep_ate)) if r.cep_ate else '' }}" placeholder="05999-999"></label>
+<label>Valor fixo (R$)<input name="valor" inputmode="decimal" value="{{ r.valor|duas_casas }}"></label>
+<label>Valor por kg (R$)<input name="valor_kg" inputmode="decimal" value="{{ r.valor_kg|duas_casas }}"></label>
+<label>Grátis acima de (R$, opcional)<input name="gratis_acima" inputmode="decimal" value="{{ r.gratis_acima|duas_casas if r.gratis_acima is not none else '' }}"></label>
+<label>Prazo<input name="prazo" value="{{ r.prazo or '' }}" maxlength="60" placeholder="3 a 5 dias úteis"></label>
+<label>Ordem<input name="ordem" type="number" value="{{ r.ordem }}"></label>
+<label><span><input type="checkbox" name="ativo" {{ 'checked' if r.ativo }}> Ativa</span></label>
+<div class="acts wide"><button class="btn">Salvar</button>
+<button class="btn ghost" formaction="{{ url_for('admin.frete_excluir', rid=r.id) }}" formnovalidate data-confirmar="Excluir esta regra de frete?">Excluir</button></div></form>
+{% else %}<div class="box"><p class="mute">Nenhuma regra ainda: todo frete está “a combinar”. Comece, por exemplo, com uma regra padrão para o Brasil todo e depois uma mais barata para o seu estado.</p></div>{% endfor %}
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2>Nova regra</h2>
+<label>Nome<input name="nome" maxlength="80" required placeholder="Ex.: Sudeste"></label>
+<label>Estados (siglas, opcional)<input name="ufs" placeholder="SP, RJ, MG, ES"></label>
+<label>CEP de (opcional)<input name="cep_de" placeholder="01000-000"></label>
+<label>CEP até (opcional)<input name="cep_ate" placeholder="05999-999"></label>
+<label>Valor fixo (R$)<input name="valor" inputmode="decimal" value="0,00"></label>
+<label>Valor por kg (R$)<input name="valor_kg" inputmode="decimal" value="0,00"></label>
+<label>Grátis acima de (R$, opcional)<input name="gratis_acima" inputmode="decimal" placeholder="Ex.: 1.000,00"></label>
+<label>Prazo<input name="prazo" maxlength="60" placeholder="3 a 5 dias úteis"></label>
+<label>Ordem<input name="ordem" type="number" value="{{ (regras|length) + 1 }}"></label>
+<p class="wide mute">Deixe estados e CEPs vazios para uma regra padrão. Para uma faixa de CEP (ex.: a sua cidade), preencha os dois CEPs. Siglas aceitas: {{ ufs|join(', ') }}.</p>
+<div><button class="btn">Adicionar regra</button></div></form>
+
+<form class="f box" method="post" id="melhor-envio"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="melhor_envio">
+<h2>Correios e transportadoras (Melhor Envio) {% if me_ligado %}<span class="tag">ligado{% if me_sandbox %} · testes{% endif %}</span>{% else %}<span class="tag off">desligado</span>{% endif %}</h2>
+<p class="wide mute pequeno">Com o Melhor Envio ligado, o cliente vê na finalização as opções cotadas na hora (ex.: Correios PAC e SEDEX, com preço e prazo) além da regra da tabela acima, se houver, e escolhe uma. Sem regra na tabela para o CEP, aparecem só as do Melhor Envio. Se a cotação falhar, a loja segue com a tabela (ou frete a combinar).
+{% if not me_token %}<br><b>Falta o token:</b> crie a conta em melhorenvio.com.br, gere um token em Configurações › Permissões de acesso (com cálculo de frete) e coloque em <code>MELHOR_ENVIO_TOKEN</code> nas variáveis do Render, junto com <code>MELHOR_ENVIO_CONTATO</code> (um e-mail técnico).{% endif %}</p>
+<label class="wide"><span><input type="checkbox" name="me_ativo" {{ 'checked' if me.ativo }}> Cotar frete pelo Melhor Envio</span></label>
+<label>CEP de onde sai a mercadoria<input name="me_cep_origem" value="{{ fmt_cep(me.cep_origem) }}" placeholder="00000-000" inputmode="numeric"></label>
+<fieldset class="wide"><legend>Serviços oferecidos ao cliente</legend>{% for k, n in me_servicos.items() %}<label><span><input type="checkbox" name="me_servicos" value="{{ k }}" {{ 'checked' if k in me.servicos }}> {{ n }}</span></label>{% endfor %}</fieldset>
+<label>Dias para separar o pedido (somam ao prazo)<input name="me_prazo_extra" type="number" min="0" max="60" value="{{ me.prazo_extra }}"></label>
+<label>Acréscimo sobre a cotação (%)<input name="me_acrescimo" inputmode="decimal" value="{{ me.acrescimo|num }}" placeholder="0 = o valor cotado"></label>
+<p class="wide mute pequeno">Caixa padrão: usada para os produtos sem medidas cadastradas (em Produtos › Editar: altura, largura e comprimento da embalagem). O Melhor Envio monta os volumes com as medidas e o peso de cada produto.</p>
+<label>Altura da caixa padrão (cm)<input name="me_altura" inputmode="decimal" value="{{ me.altura|num }}"></label>
+<label>Largura da caixa padrão (cm)<input name="me_largura" inputmode="decimal" value="{{ me.largura|num }}"></label>
+<label>Comprimento da caixa padrão (cm)<input name="me_comprimento" inputmode="decimal" value="{{ me.comprimento|num }}"></label>
+<label>Peso padrão por unidade (kg, para produto sem peso)<input name="me_peso" inputmode="decimal" value="{{ me.peso|num }}"></label>
+<label class="wide"><span><input type="checkbox" name="me_seguro" {{ 'checked' if me.seguro }}> Declarar o valor dos produtos (seguro): o frete fica mais caro, mas a mercadoria é indenizada se extraviar</span></label>
+<div><button class="btn">Salvar Melhor Envio</button></div></form>
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="simular">
+<h2>Simular frete</h2>
+<label>CEP<input name="sim_cep" value="{{ teste.cep if teste else '' }}" required placeholder="00000-000"></label>
+<label>Valor dos produtos (R$)<input name="sim_valor" inputmode="decimal" value="{{ teste.valor|duas_casas if teste else '500,00' }}"></label>
+<label>Peso (kg, numa caixa padrão)<input name="sim_peso" inputmode="decimal" value="{{ teste.peso if teste else '5' }}"></label>
+<div><button class="btn ghost">Simular</button></div>
+{% if teste %}<div class="wide msg">{% if not teste.valido %}CEP inválido.{% elif teste.opcoes %}Estado {{ teste.uf }}. O cliente veria:<ul class="lista-simples">{% for o in teste.opcoes %}<li>{{ o.nome }}{% if o.codigo == 'tabela' %} <small class="mute">(regra “{{ o.regra }}”)</small>{% endif %}: <b>{{ 'grátis' if o.gratis else o.valor|brl }}</b>{% if o.prazo %} · {{ o.prazo }}{% endif %}</li>{% endfor %}</ul>{% else %}Estado {{ teste.uf or '?' }}: nenhuma opção de entrega (nenhuma regra se aplica{% if me_ligado %} e o Melhor Envio não cotou{% endif %}), frete <b>a combinar</b>.{% endif %}</div>{% endif %}
+</form>
+{% endblock %}

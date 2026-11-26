@@ -1,0 +1,3 @@
+<a class="box orow" href="{{ url_for('account.pedido_detalhe', oid=p.id) }}">
+<div><b>Pedido #{{ p.id }}</b><span class="mute">{{ p.created_at.strftime('%d/%m/%Y') if p.created_at }} · {{ p.items|length }} item(ns)</span></div>
+<span class="tag {{ '' if p.status == 'pago' or p.envio else 'off' }}">{{ ('Entregue' if p.envio == 'entregue' else 'Enviado') if p.envio and p.status != 'cancelado' else status[p.status] }}</span><b>{{ p.total|brl }}</b></a>

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Pedido de compra #{{ c.id }} · Marketplace B2B{% endblock %}
+{% block head %}<style>
+{% include "admin/_estilo_impressao.html" %}
+.folha{border:1px solid #ccc;border-radius:6px;padding:18px 20px}
+@media print{.barra-imprimir{display:none}.folha{border:0;padding:0}}
+</style>{% endblock %}
+{% block body %}
+<div class="impressao">
+<div class="barra-imprimir"><a class="link" href="{{ url_for('admin.compra', cid=c.id) }}">← Voltar</a><button class="btn" data-imprimir>Imprimir ou salvar em PDF</button></div>
+<div class="folha">
+<h1>Pedido de compra #{{ c.id }}</h1>
+<p>Emitido em {{ c.criado_em|hora_br }}</p>
+<h2>Fornecedor</h2>
+<div class="dados"><p><b>{{ c.fornecedor.nome }}</b></p><p>{% if c.fornecedor.documento %}CNPJ/CPF {{ c.fornecedor.documento }}{% endif %}</p>
+<p>{{ c.fornecedor.contato or '' }}</p><p>{{ c.fornecedor.telefone or '' }} {{ c.fornecedor.email or '' }}</p></div>
+<h2>Itens</h2>
+<table><tr><th>Produto</th><th>Cód. no fornecedor</th><th>Qtd</th><th>Preço</th><th>Subtotal</th></tr>
+{% for i in c.itens %}{% set cod = (i.product.custos|selectattr('fornecedor_id', 'equalto', c.fornecedor_id)|map(attribute='codigo')|select|first) %}
+<tr><td>{{ i.product.name }}{% if i.product.codigo %}<br><small>{{ i.product.codigo }}</small>{% endif %}</td><td>{{ cod or '' }}</td><td class="num">{{ i.quantidade }}</td><td class="num">{{ i.preco|brl }}</td><td class="num">{{ (i.preco * i.quantidade)|brl }}</td></tr>{% endfor %}
+<tr><td colspan="4" class="num">Produtos</td><td class="num">{{ t.produtos|brl }}</td></tr>
+{% if t.impostos %}<tr><td colspan="4" class="num">IPI e ICMS-ST</td><td class="num">{{ t.impostos|brl }}</td></tr>{% endif %}
+{% if t.frete %}<tr><td colspan="4" class="num">Frete</td><td class="num">{{ t.frete|brl }}</td></tr>{% endif %}
+<tr><td colspan="4" class="num"><b>Total</b></td><td class="num"><b>{{ t.total|brl }}</b></td></tr></table>
+<h2>Condições</h2>
+<p>Pagamento: {{ c.condicao ~ ' dias' if c.condicao else 'à vista' }}{% if c.previsao %} · Entrega até {{ c.previsao.strftime('%d/%m/%Y') }}{% endif %}</p>
+{% if c.observacoes %}<p>{{ c.observacoes }}</p>{% endif %}
+</div></div>
+{% endblock %}

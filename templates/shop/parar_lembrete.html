@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Lembretes do carrinho · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<section class="login box auth"><h2>Lembretes do carrinho</h2>
+{% if parado %}<p>Pronto: você não vai mais receber lembretes de produtos deixados no carrinho. Para ligar de novo, entre na sua conta e vá em <b>Privacidade</b>.</p>
+{% else %}<p>Quer parar de receber o e-mail que avisa quando você deixa produtos no carrinho? Os outros e-mails (pedidos, entregas e notas fiscais) continuam chegando.</p>
+<form method="post" class="stack"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn">Não quero mais lembretes</button></form>{% endif %}
+<p class="cat"><a class="link" href="/">Voltar à loja</a></p></section>
+{% endblock %}

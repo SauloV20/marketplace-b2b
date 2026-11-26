@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Confirmar celular · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow">
+<h1>{{ 'Confirme seu celular' if obrigatorio else 'Trocar celular' }}</h1>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% if obrigatorio %}<p class="mute">Para sua segurança, confirmamos o celular de cada conta com um código por SMS. É só uma vez.</p>
+{% else %}<p class="mute">Celular confirmado: <b>{{ fmt_cel(cliente.phone) }}</b>. Para trocar, confirme o número novo.</p>{% endif %}
+<form class="box stack" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="enviar">
+<label>Celular com DDD<input name="celular" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(11) 98765-4321" value="{{ fmt_cel(pendente) if pendente else (cliente.phone or '') }}"></label>
+<button class="btn {{ 'ghost' if pendente }}">{{ 'Enviar outro código' if pendente else 'Enviar código por SMS' }}</button></form>
+{% if pendente %}
+<form class="box stack" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="conferir">
+<label>Código recebido em {{ fmt_cel(pendente) }}<input name="codigo" inputmode="numeric" autocomplete="one-time-code" required maxlength="10" autofocus></label>
+<button class="btn">Confirmar</button></form>{% endif %}
+<form method="post" action="{{ url_for('account.sair') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link">Sair da conta</button></form>
+</main>
+{% endblock %}

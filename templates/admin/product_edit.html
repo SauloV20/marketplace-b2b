@@ -1,0 +1,55 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Editar produto</h1>
+{% if esperando %}<p class="msg">{{ esperando }} cliente(s) pediram para ser avisados quando este produto voltar. Ao salvar com estoque, eles recebem um e-mail.</p>{% endif %}
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Código (SKU, opcional)<input name="codigo" value="{{ p.codigo or '' }}" maxlength="40"></label>
+<label>Nome<input name="name" value="{{ p.name }}" required maxlength="160"></label>
+<label>Categoria<select name="category_id" required>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if c.id == p.category_id }}>{{ c.name }}</option>{% endfor %}</select></label>
+{% if p.preco_auto %}<label>Preço (R$, calculado pelo custo)<input name="price" inputmode="decimal" value="{{ p.price|duas_casas }}" readonly aria-describedby="preco-auto-dica"></label>
+<p class="wide mute pequeno" id="preco-auto-dica">Este preço sai do custo do fornecedor, do markup e dos impostos{% if pode('custos') %}: mude em <a class="link" href="{{ url_for('admin.produto_custo', pid=p.id) }}">Custo e preço</a>{% endif %}. Para outros estados ele é ajustado pelo imposto.</p>
+{% else %}<label>Preço (R$)<input name="price" inputmode="decimal" value="{{ p.price|duas_casas }}" required>{% if pode('custos') %}<small><a class="link" href="{{ url_for('admin.produto_custo', pid=p.id) }}">Calcular pelo custo</a></small>{% endif %}</label>{% endif %}
+<label>Estoque<input name="stock" type="number" min="0" value="{{ p.stock }}" required></label>
+<label>Peso por unidade (kg, para o frete)<input name="peso_kg" inputmode="decimal" value="{{ p.peso_kg|num }}"></label>
+<label>Altura da embalagem (cm)<input name="altura_cm" inputmode="decimal" value="{{ p.altura_cm|num }}" placeholder="caixa padrão"></label><label>Largura da embalagem (cm)<input name="largura_cm" inputmode="decimal" value="{{ p.largura_cm|num }}" placeholder="caixa padrão"></label><label>Comprimento da embalagem (cm)<input name="comprimento_cm" inputmode="decimal" value="{{ p.comprimento_cm|num }}" placeholder="caixa padrão"></label>
+<label>Avisar quando o estoque chegar a (un, 0 = não avisa)<input name="estoque_alerta" type="number" min="0" value="{{ p.estoque_alerta }}"></label>
+<label>Quantidade mínima por pedido<input name="qtd_minima" type="number" min="1" value="{{ p.qtd_minima }}" required></label>
+<label>Vende em múltiplos de<input name="multiplo" type="number" min="1" value="{{ p.multiplo }}" required></label>
+<fieldset class="wide frac"><legend>Fracionar embalagem</legend>
+<label><span><input type="checkbox" name="fracionavel" {{ 'checked' if p.fracionavel }}> Permitir vender fora da embalagem (precisa de múltiplo maior que 1)</span></label>
+<label>Acréscimo na unidade fracionada (%)<input name="acrescimo_fracionado" inputmode="decimal" value="{{ p.acrescimo_fracionado|num }}"></label>
+<label>Unidades avulsas (de embalagem aberta)<input name="estoque_avulso" type="number" min="0" value="{{ p.estoque_avulso }}"></label>
+<p class="mute">Estoque agora: {{ p.stock - p.estoque_avulso }} un em embalagens fechadas{% if p.multiplo > 1 %} ({{ (p.stock - p.estoque_avulso) // p.multiplo }} com {{ p.multiplo }}){% endif %} + {{ p.estoque_avulso }} un avulsa(s). Ex.: caixa com 25 e pedido de 7: abre uma caixa, vende 7 e as 18 restantes viram avulsas; o próximo pedido quebrado usa as avulsas primeiro.</p></fieldset>
+<fieldset class="wide frac" id="promocao"><legend>Promoção com data</legend>
+<label>Preço promocional (R$)<input name="preco_promocional" inputmode="decimal" value="{{ p.preco_promocional|duas_casas if p.preco_promocional else '' }}" placeholder="vazio = sem promoção"></label>
+<label>Começa em<input name="promo_inicio" type="date" value="{{ p.promo_inicio.isoformat() if p.promo_inicio else '' }}"></label>
+<label>Termina em (último dia)<input name="promo_fim" type="date" value="{{ p.promo_fim.isoformat() if p.promo_fim else '' }}"></label>
+<p class="mute">No período, o produto ganha o selo <b>Oferta</b>, aparece em <b>Ofertas</b> no menu da loja e o cliente paga o <b>menor</b> entre o preço dele (faixa por quantidade e desconto da empresa) e o promocional; os descontos não se somam. Depois da data, volta sozinho ao normal. {% if promo_ativa %}<b class="gratis">Valendo agora.</b>{% elif p.preco_promocional %}<b>Fora do período agora.</b>{% endif %}</p></fieldset>
+<fieldset class="wide frac" id="fiscal"><legend>Nota fiscal (NF-e)</legend>
+<label>NCM (8 números)<input name="ncm" value="{{ p.ncm or '' }}" inputmode="numeric" maxlength="10" placeholder="Ex.: 82077010"></label>
+<label>CEST (se tiver ST)<input name="cest" value="{{ p.cest or '' }}" inputmode="numeric" maxlength="9"></label>
+<label>Origem<select name="origem">{% for k, n in origens.items() %}<option value="{{ k }}" {{ 'selected' if (p.origem or 0) == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Unidade<input name="unidade" value="{{ p.unidade or 'UN' }}" maxlength="6"></label>
+<label>Código de barras (EAN)<input name="ean" value="{{ p.ean or '' }}" inputmode="numeric" maxlength="14" placeholder="vazio = SEM GTIN"></label>
+<label>Regra fiscal<select name="perfil_fiscal_id"><option value="">Padrão</option>{% for r in perfis %}<option value="{{ r.id }}" {{ 'selected' if p.perfil_fiscal_id == r.id }}>{{ r.nome }}</option>{% endfor %}</select></label>
+<p class="mute">O NCM vem na nota de compra do fornecedor. A regra fiscal (CFOP, ICMS, PIS, COFINS) é definida com o contador em Nota fiscal › Configuração.</p></fieldset>
+<label class="wide">Preço por quantidade (uma faixa por linha: a partir de quantas unidades = preço de cada)
+<textarea name="faixas" rows="3" placeholder="10 = 16,50&#10;50 = 14,90">{{ faixas }}</textarea></label>
+<label>URL da imagem (foto de outro site; prefira enviar a sua em “Fotos”)<input name="image_url" type="url" value="{{ p.image_url or '' }}"></label>
+{% if p.image_url %}<p class="msg wide">A foto deste produto vem de outro site: pode sumir a qualquer momento e usar foto de outra loja pode dar problema de direitos. Envie a sua foto em “Fotos” (abaixo) e depois apague o link acima e salve.</p>{% endif %}
+<label class="wide">Descrição (aparece na página do produto)<textarea name="description" rows="5">{{ p.description or '' }}</textarea></label>
+<label><span><input type="checkbox" name="active" {{ 'checked' if p.active }}> Produto ativo na loja</span></label>
+<div><button class="btn">Salvar alterações</button> <a class="btn ghost" href="{{ url_for('admin.products') }}">Cancelar</a>
+{% if p.active %} <a class="btn ghost" href="{{ link_produto(p) }}" target="_blank" rel="noopener">Ver na loja</a>{% endif %}</div></form>
+<div class="box"><h2>Fotos</h2>
+<p class="mute">A primeira é a principal (aparece na vitrine). Até 8 fotos, PNG, JPG ou WEBP de até 10 MB (a loja reduz e comprime sozinha, sem perder qualidade visível). Fundo branco e formato quadrado ficam melhor.</p>
+<div class="fotos-admin">{% for f in p.fotos %}<figure><img src="{{ url_for('shop.produto_foto', fid=f.id, v=f.versao) }}" alt="Foto {{ loop.index }}">
+<figcaption>{% if loop.first %}<span class="tag">Principal</span>{% else %}<form method="post" action="{{ url_for('admin.foto_principal', pid=p.id, fid=f.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link">Tornar principal</button></form>{% endif %}
+<form method="post" action="{{ url_for('admin.foto_excluir', pid=p.id, fid=f.id) }}" data-confirmar="Remover esta foto?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link">Remover</button></form></figcaption></figure>
+{% else %}<p class="mute">Nenhuma foto enviada{% if p.image_url %} (usando o link de imagem do produto){% endif %}.</p>{% endfor %}</div>
+{% if p.fotos|length < 8 %}<form class="f" method="post" action="{{ url_for('admin.fotos_enviar', pid=p.id) }}" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label class="wide">Enviar fotos (pode escolher várias)<input type="file" name="fotos" accept="image/png,image/jpeg,image/webp,image/gif" multiple required data-previa="previa-edit"></label>
+<div class="wide fotos-previa" id="previa-edit" aria-live="polite"></div>
+<div><button class="btn">Enviar fotos</button></div></form>{% endif %}</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin-fotos.js') }}"></script>{% endblock %}

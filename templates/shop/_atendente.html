@@ -1,0 +1,20 @@
+<div class="chat" id="chat" data-url="{{ url_for('shop.atendente_responder') }}" data-nome="{{ cliente_logado.name.split()[0]|title if cliente_logado else '' }}">
+<button class="chat-abrir" type="button" aria-expanded="false" aria-controls="chat-janela">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>
+<span>Atendimento</span></button>
+<section class="chat-janela" id="chat-janela" hidden aria-label="Atendimento virtual">
+<header><div><b>Atendimento Marketplace B2B</b><small>Assistente virtual com inteligência artificial</small></div>
+<button class="chat-fechar" type="button" aria-label="Fechar atendimento">×</button></header>
+<div class="chat-msgs" id="chat-msgs" role="log" aria-live="polite"></div>
+<div class="chat-sugestoes" id="chat-sugestoes">
+<button type="button">Como faço para comprar como empresa?</button>
+<button type="button">Vocês têm disco de corte para inox?</button>
+<button type="button">Como funciona o orçamento?</button>
+</div>
+<form class="chat-form" id="chat-form"><label class="sr" for="chat-texto">Sua mensagem</label>
+<textarea id="chat-texto" rows="1" maxlength="800" placeholder="Escreva sua pergunta..." required></textarea>
+<button class="btn" aria-label="Enviar">Enviar</button></form>
+<p class="chat-rodape">Respostas geradas por IA podem conter erros; confira preços na página do produto.
+{% if whatsapp_loja %}<a href="https://wa.me/{{ whatsapp_loja }}" target="_blank" rel="noopener">Falar com uma pessoa</a>{% endif %}</p>
+</section></div>
+<script src="{{ url_for('static', filename='atendente.js') }}"></script>

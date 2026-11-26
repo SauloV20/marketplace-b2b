@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Carrinho · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Seu carrinho</h1>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% if lines %}
+<div class="cart-layout">
+<div class="box lines">
+{% for l in lines %}
+<div class="line"><div class="line-info"><span class="cat">{{ l.p.category.name }}</span><b><a href="{{ link_produto(l.p) }}">{{ l.p.name }}</a></b>{% set de = tabela_no_estado(l.p) %}<span>{{ l.unit|brl }} cada{% if l.unit < de %} <s class="mute">{{ de|brl }}</s>{% endif %}</span>
+{% if l.frac %}<small class="mute">{% if l.fechadas %}{{ l.fechadas }} un em embalagem fechada + {% endif %}{{ l.frac }} un fracionada(s) a {{ l.unit_frac|brl }}</small>
+{% elif l.p.qtd_minima > 1 or l.p.multiplo > 1 %}<small class="mute">Mínimo {{ l.p.qtd_minima }} · {{ ('embalagem com ' if l.p.fracionavel else 'múltiplos de ') ~ l.p.multiplo }}</small>{% endif %}</div>
+<div class="qty"><label class="qtd-campo"><span class="sr">Quantidade de {{ l.p.name }}</span><input name="qty_{{ l.p.id }}" form="carrinho-qtd" type="number" min="0" max="{{ l.p.stock }}" step="{{ 1 if l.p.fracionavel else l.p.multiplo }}" value="{{ l.qty }}" inputmode="numeric"></label></div>
+<div class="line-sub">{{ l.sub|brl }}
+<form method="post" action="{{ url_for('shop.cart_update') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="pid" value="{{ l.p.id }}"><input type="hidden" name="qty" value="0"><button class="link" aria-label="Remover {{ l.p.name }}">Remover</button></form></div></div>
+{% endfor %}
+<div class="atualizar-tudo">
+<span class="mute pequeno" data-carrinho-aviso hidden>Você mudou quantidades: atualize para recalcular os preços.</span>
+<form method="post" action="{{ url_for('shop.cart_esvaziar') }}" data-confirmar="Tirar todos os produtos do carrinho?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost perigo">Esvaziar carrinho</button></form>
+<form id="carrinho-qtd" method="post" action="{{ url_for('shop.cart_atualizar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost" data-carrinho-botao>Atualizar carrinho</button></form>
+</div></div>
+<section class="box por-codigo"><h3>Adicionar por código</h3>
+<form class="por-codigo-form" method="post" action="{{ url_for('shop.rapido') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="adicionar">
+<label>Código do produto<input name="codigo" placeholder="Ex.: DISCO-7" autocomplete="off" autocapitalize="characters" maxlength="60" required></label>
+<label>Quantidade<input name="qtd" type="number" min="1" value="1" inputmode="numeric" required></label>
+<button class="btn">Adicionar</button></form>
+<p class="mute pequeno">O código aparece na página de cada produto. Vários de uma vez? Use o <a class="link" href="{{ url_for('shop.rapido') }}">pedido rápido</a> e cole a lista.</p></section>
+<aside class="box summary"><h3>Resumo</h3>
+<div class="sum-row"><span>Subtotal</span><b>{{ total|brl }}</b></div>
+{% if cupom %}<div class="sum-row cupom-ok"><span>Cupom {{ cupom.codigo }} <small class="mute">({{ descricao_cupom(cupom) }})</small></span><b class="gratis">-{{ desconto|brl }}</b></div>
+<form method="post" action="{{ url_for('shop.cart_cupom') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link" name="acao" value="remover">Remover cupom</button></form>
+{% else %}{% if erro_cupom %}<p class="msg">{{ erro_cupom }}</p>{% endif %}
+<form class="cep-form" method="post" action="{{ url_for('shop.cart_cupom') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Cupom de desconto<span class="cep-linha"><input name="codigo" value="{{ codigo_cupom }}" placeholder="CÓDIGO" autocapitalize="characters" autocomplete="off" maxlength="30" required><button class="btn ghost">Aplicar</button></span></label></form>
+{% if codigo_cupom %}<form method="post" action="{{ url_for('shop.cart_cupom') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link" name="acao" value="remover">Remover cupom</button></form>{% endif %}{% endif %}
+<form class="cep-form" method="post" action="{{ url_for('shop.cart_cep') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Calcular frete<span class="cep-linha"><input name="cep" value="{{ fmt_cep(cep) }}" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" maxlength="9" required><button class="btn ghost">OK</button></span></label></form>
+{% if cep %}{% if calculo %}{% for o in opcoes %}<div class="sum-row"><span>{{ o.nome }}{% if o.prazo %} <small class="mute">({{ o.prazo }})</small>{% endif %}</span><b class="{{ 'gratis' if o.gratis }}">{{ 'Grátis' if o.gratis else o.valor|brl }}</b></div>{% endfor %}
+{% if opcoes|length > 1 %}<p class="mute pequeno">Você escolhe a entrega ao finalizar. O total abaixo usa {{ calculo.nome }}.</p>{% endif %}
+{% else %}<p class="mute">Frete para {{ fmt_cep(cep) }}: combinado com o Marketplace B2B após o pedido.</p>{% endif %}
+{% else %}<p class="mute">Informe o CEP para ver o frete e o prazo.</p>{% endif %}
+<div class="sum-row total"><span>Total{% if not calculo %} <small class="mute">(sem o frete)</small>{% endif %}</span><b>{{ (total - desconto + (calculo.valor if calculo else 0))|brl }}</b></div>
+{% if uf_precos %}<p class="mute pequeno">Preços para entrega em {{ uf_precos }}{% if not cep %} (seu endereço principal){% endif %}. Entrega em outro estado? Informe o CEP acima.</p>{% endif %}
+{% if desconto %}<p class="economia">Você economiza {{ desconto|brl }} com o cupom.</p>{% endif %}
+{% if total < minimo %}<p class="msg">Pedido mínimo de {{ minimo|brl }}. Faltam {{ (minimo - total)|brl }}.</p>
+{% else %}<a class="btn block" href="{{ url_for('shop.checkout') }}">Finalizar compra</a>{% endif %}
+<a class="link" href="/">Continuar comprando</a>
+<details class="salvar-lista"><summary>Salvar este carrinho como lista</summary>
+<form method="post" action="{{ url_for('account.lista_do_carrinho') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Lista<select name="lista" data-lista-escolha>{% for l in cliente_logado.listas %}<option value="{{ l.id }}">{{ l.nome }}</option>{% endfor %}<option value="nova" {{ 'selected' if not cliente_logado.listas }}>+ Nova lista</option></select></label>
+<label data-lista-nova>Nome da nova lista<input name="nome_lista" maxlength="60" placeholder="Ex.: Reposição mensal"></label>
+<button class="btn ghost">Salvar lista</button></form></details></aside>
+</div>
+{% else %}<section class="box por-codigo"><h3>Adicionar por código</h3>
+<form class="por-codigo-form" method="post" action="{{ url_for('shop.rapido') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="adicionar">
+<label>Código do produto<input name="codigo" placeholder="Ex.: DISCO-7" autocomplete="off" autocapitalize="characters" maxlength="60" required></label>
+<label>Quantidade<input name="qtd" type="number" min="1" value="1" inputmode="numeric" required></label>
+<button class="btn">Adicionar</button></form>
+<p class="mute pequeno">O código aparece na página de cada produto. Vários de uma vez? Use o <a class="link" href="{{ url_for('shop.rapido') }}">pedido rápido</a> e cole a lista.</p></section>
+<p class="empty">Seu carrinho está vazio. <a class="link" href="/">Ver produtos</a> ou faça um <a class="link" href="{{ url_for('shop.rapido') }}">pedido rápido por código</a>.</p>{% endif %}
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='shop.js') }}"></script>{% endblock %}

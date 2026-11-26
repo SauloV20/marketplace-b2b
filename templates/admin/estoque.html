@@ -1,0 +1,29 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Estoque</h1>
+<div class="box"><p>Posição de cada produto e <b>inventário</b>: conte o que tem na prateleira, digite na coluna “Contado” só o que for diferente e grave. Cada mudança (vendas, cancelamentos, compras recebidas, ajustes e inventários) fica no <b>histórico</b> do produto.</p>
+{% if pode('custos') %}<p class="mute">Valor do estoque a custo (custo médio das compras ou, sem compra, o da formação de preço): <b>{{ valor|brl }}</b>{% if q or cat or filtro %} nos produtos filtrados{% endif %}.</p>{% endif %}</div>
+
+<form method="get" class="busca-pedidos box">
+<label>Buscar<input name="q" value="{{ q }}" placeholder="Nome ou código"></label>
+<label>Categoria<select name="cat"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c.id }}" {{ 'selected' if c.id == cat }}>{{ c.name }}</option>{% endfor %}</select></label>
+<label>Mostrar<select name="filtro"><option value="">Todos</option><option value="baixo" {{ 'selected' if filtro == 'baixo' }}>Estoque baixo (no alerta)</option><option value="zerado" {{ 'selected' if filtro == 'zerado' }}>Zerados</option></select></label>
+<button class="btn ghost">Filtrar</button></form>
+
+<form method="post" class="box" style="overflow-x:auto"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<table class="tabela-campos">
+<tr><th>Produto</th><th>Estoque</th><th>Alerta</th>{% if pode('custos') %}<th>Custo</th>{% endif %}<th>Último movimento</th><th>Contado</th><th></th></tr>
+{% for p in produtos %}<tr>
+<td>{{ p.name }}{% if p.codigo %}<br><small class="mute">{{ p.codigo }}</small>{% endif %}{% if not p.active %} <span class="tag off">inativo</span>{% endif %}</td>
+<td class="num"><b class="{{ 'gratis' if p.stock > p.estoque_alerta else '' }}">{{ p.stock }}</b>{% if p.estoque_avulso %}<br><small class="mute">{{ p.estoque_avulso }} avulsa(s)</small>{% endif %}</td>
+<td class="num">{{ p.estoque_alerta or '—' }}{% if p.estoque_alerta and p.stock <= p.estoque_alerta %} <span class="tag off">baixo</span>{% endif %}</td>
+{% if pode('custos') %}<td class="num">{{ custos[p.id]|brl if custos[p.id] is not none else '—' }}</td>{% endif %}
+<td>{{ (ultimos[p.id]|hora_br) if ultimos.get(p.id) else '—' }}</td>
+<td><input name="contado_{{ p.id }}" inputmode="numeric" placeholder="{{ p.stock }}" aria-label="Contado de {{ p.name }}" style="max-width:110px"></td>
+<td><a class="btn ghost" href="{{ url_for('admin.estoque_produto', pid=p.id) }}">Histórico</a></td></tr>
+{% else %}<tr><td colspan="7" class="mute">Nenhum produto neste filtro.</td></tr>{% endfor %}
+</table>
+{% if produtos %}<div class="acts-row"><label style="flex:1">Observação do inventário<input name="obs" maxlength="200" placeholder="Ex.: Contagem de fim de mês"></label>
+<button class="btn" data-confirmar="Gravar as quantidades contadas? O estoque dos produtos preenchidos passa a ser o contado.">Gravar inventário</button></div>{% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Minha conta</h1>
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="dados">
+<h2>Nome e e-mail de acesso</h2>
+<label>Nome<input name="nome" value="{{ user.name }}" required maxlength="120"></label>
+<label>E-mail (usado para entrar no painel)<input name="email" type="email" value="{{ user.email }}" required maxlength="120"></label>
+<label>Senha atual<input name="atual" type="password" required autocomplete="current-password"></label>
+<button class="btn">Salvar dados</button></form>
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="senha">
+<h2>Trocar senha</h2>
+<label>Senha atual<input name="atual" type="password" required autocomplete="current-password"></label>
+<label>Nova senha (mínimo 12 caracteres)<input name="nova" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+<label>Repita a nova senha<input name="nova2" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+<button class="btn">Trocar senha</button></form>
+<section class="box duas-etapas" id="duas-etapas"><h2>Verificação em duas etapas</h2>
+{% if dois_desligado %}<p class="msg">Desligada pela variável <b>ADMIN_2FA_DESLIGADO</b> no Render: o painel está pedindo só a senha. Ajuste aqui e depois apague a variável.</p>{% endif %}
+{% if codigos_novos %}
+<div class="codigos-recuperacao"><p><b>Códigos de recuperação.</b> Anote ou imprima e guarde longe do celular. Cada um vale <b>uma vez</b>, no lugar do código do app, se você perder o celular. Eles não aparecem de novo.</p>
+<ol>{% for c in codigos_novos %}<li><code>{{ c }}</code></li>{% endfor %}</ol></div>
+{% endif %}
+{% if dois_ativo %}
+<p><span class="tag">ativa</span> Para entrar no painel, além da senha, é pedido o código de 6 dígitos do app autenticador. Códigos de recuperação restantes: <b>{{ restantes }}</b>.</p>
+<form class="f" method="post" action="{{ url_for('admin.duas_etapas') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Senha atual<input name="atual" type="password" required autocomplete="current-password"></label>
+<label>Código do app (ou de recuperação)<input name="codigo" inputmode="numeric" autocomplete="one-time-code" {{ '' if dois_desligado else 'required' }}></label>
+<div class="wide acts-row"><button class="btn ghost" name="acao" value="novos_codigos">Gerar novos códigos de recuperação</button>
+<button class="btn ghost perigo" name="acao" value="desativar" data-confirmar="Desativar a verificação em duas etapas? O painel volta a pedir só a senha.">Desativar</button></div></form>
+{% elif qr_novo %}
+<ol class="passos-2fa"><li>Instale um app autenticador no celular (Google Authenticator, Microsoft Authenticator ou Authy, todos gratuitos).</li>
+<li>No app, toque em <b>adicionar</b> e escaneie o QR Code abaixo. Se não der, digite a chave manualmente.</li>
+<li>Digite o código de 6 dígitos que aparecer no app.</li></ol>
+<div class="qr-2fa">{{ qr_novo|safe }}<p class="mute">Chave: <code>{{ segredo_novo }}</code></p></div>
+<form class="f" method="post" action="{{ url_for('admin.duas_etapas') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Código do app<input name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required placeholder="000000"></label>
+<div class="acts-row"><button class="btn" name="acao" value="confirmar">Confirmar e ativar</button>
+<button class="btn ghost" name="acao" value="cancelar" formnovalidate>Cancelar</button></div></form>
+{% else %}
+<p>Protege o painel mesmo se alguém descobrir sua senha: além dela, o login pede um código de 6 dígitos que muda a cada 30 segundos no seu celular. É gratuito.</p>
+<form class="f" method="post" action="{{ url_for('admin.duas_etapas') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Senha atual<input name="atual" type="password" required autocomplete="current-password"></label>
+<div><button class="btn" name="acao" value="iniciar">Ativar verificação em duas etapas</button></div></form>
+{% endif %}
+</section>
+<div class="box"><h2>E-mail do site</h2>
+{% if provedor %}<p>Enviando por <b>{{ provedor }}</b>, com remetente <b>{{ remetente }}</b>.</p>
+{% if provedor.startswith('SMTP') %}<p class="mute">No plano grátis do Render o SMTP não funciona (portas bloqueadas). Se o teste der "timed out", use a API do Brevo (BREVO_API_KEY).</p>{% endif %}
+{% if 'exemplo.com' in remetente %}<p class="msg">O remetente ainda é o de exemplo. Defina MAIL_FROM com um endereço seu (na Resend, de um domínio verificado; no Gmail, o próprio Gmail).</p>{% endif %}
+{% else %}<p class="msg">Nenhum serviço de e-mail configurado: confirmação de cadastro e recuperação de senha não chegam aos clientes.</p>
+<p class="mute">No Render, em Environment, defina <b>BREVO_API_KEY</b> e <b>MAIL_FROM</b> (Brevo, funciona no plano grátis), ou <b>RESEND_API_KEY</b> e <b>MAIL_FROM</b> (Resend). SMTP (MAIL_SERVER...) só funciona em plano pago do Render.</p>{% endif %}
+<form method="post" action="{{ url_for('admin.email_teste') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost">Enviar e-mail de teste para {{ user.email }}</button></form></div>
+{% endblock %}

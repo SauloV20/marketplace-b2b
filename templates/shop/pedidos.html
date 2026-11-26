@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Meus pedidos · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Meus pedidos</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+{% if pedidos %}<p class="acoes-lote"><a class="btn ghost" href="{{ url_for('account.pedidos_planilha') }}" download>Baixar pedidos em Excel</a></p>{% endif %}
+{% for p in pedidos %}{% include "shop/_pedido_linha.html" %}
+{% else %}<p class="mute">Você ainda não fez pedidos. <a class="link" href="/">Ver produtos</a></p>{% endfor %}
+</main>
+{% endblock %}

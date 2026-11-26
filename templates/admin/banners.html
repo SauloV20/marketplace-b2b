@@ -1,0 +1,19 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Banners</h1>
+<p class="mute">Os banners ativos passam no topo da página inicial da loja, nesta ordem. Sem nenhum ativo, aparece o banner padrão.</p>
+<p><a class="btn" href="{{ url_for('admin.banner_editar') }}">+ Novo banner</a></p>
+<div class="box" style="overflow-x:auto"><table>
+<tr><th>Ordem</th><th>Banner</th><th>Tipo</th><th>Situação</th><th></th></tr>
+{% for b in banners %}<tr>
+<td class="acts"><form method="post" action="{{ url_for('admin.banner_mover', bid=b.id) }}" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="para" value="cima"><button class="btn ghost" aria-label="Subir" {{ 'disabled' if loop.first }}>↑</button></form>
+<form method="post" action="{{ url_for('admin.banner_mover', bid=b.id) }}" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="para" value="baixo"><button class="btn ghost" aria-label="Descer" {{ 'disabled' if loop.last }}>↓</button></form></td>
+<td><div class="mini-banner cor-{{ b.cor }}">{% if b.imagem %}<img src="{{ url_for('shop.banner_imagem', bid=b.id, v=b.versao) }}" alt="">{% elif b.imagem_url %}<img src="{{ b.imagem_url }}" alt="">{% endif %}<span>{{ b.titulo or (b.product.name if b.product else '') or 'Imagem' }}</span></div></td>
+<td>{% if b.product %}Produto: {{ b.product.name }}{% if not b.product.active %} <span class="tag off">produto inativo</span>{% endif %}{% elif b.imagem or b.imagem_url %}Imagem{% else %}Texto{% endif %}</td>
+<td><span class="tag {{ '' if b.ativo else 'off' }}">{{ 'Ativo' if b.ativo else 'Desativado' }}</span></td>
+<td class="acts"><a class="btn ghost" href="{{ url_for('admin.banner_editar', bid=b.id) }}">Editar</a>
+<form method="post" action="{{ url_for('admin.banner_ativar', bid=b.id) }}" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost">{{ 'Desativar' if b.ativo else 'Ativar' }}</button></form>
+<form method="post" action="{{ url_for('admin.banner_excluir', bid=b.id) }}" style="display:inline" data-confirmar="Excluir este banner?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost">Excluir</button></form></td></tr>
+{% else %}<tr><td colspan="5">Nenhum banner ainda. Crie o primeiro: escolha um produto em destaque ou envie uma imagem.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

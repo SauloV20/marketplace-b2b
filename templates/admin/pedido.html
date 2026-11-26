@@ -1,0 +1,129 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<a class="link" href="{{ url_for('admin.orders') }}">← Pedidos</a>
+<h1>Pedido #{{ o.id }} <span class="tag {{ 'off' if o.status == 'cancelado' }}">{{ o.status }}</span>{% if o.envio %} <span class="tag">{{ envio[o.envio]|lower }}</span>{% endif %}</h1>
+<p class="atalhos-pedido">{% if not bloqueio_edicao %}<a class="btn" href="#editar">Editar itens, preços ou frete</a>{% endif %}
+{% if o.status != 'cancelado' %}<a class="btn ghost" href="#envio">Envio e rastreio</a>{% endif %} <a class="btn ghost" href="#documentos">Documentos</a> <a class="btn ghost" href="{{ url_for('admin.orders_imprimir', oid=o.id) }}" target="_blank" rel="noopener">Imprimir romaneio e etiqueta</a></p>
+
+<div class="box">
+{% if o.razao_social %}<p><b>{{ o.razao_social }}</b> · CNPJ {{ fmt_doc(o.documento) }}{% if o.inscricao_estadual %} · IE {{ o.inscricao_estadual }}{% endif %}</p>
+{% elif o.documento %}<p>CPF {{ fmt_doc(o.documento) }}</p>{% endif %}
+<p>{{ o.customer_name }} · {{ o.customer_email }} · {{ o.customer_phone }}</p>
+{% if o.comprador_nome %}<p class="mute">Feito por {{ o.comprador_nome }}, da equipe da empresa{% if o.status == 'aprovacao' %} · <b>aguardando a aprovação da empresa</b> (ainda não segue para separação){% endif %}</p>{% endif %}
+<p class="mute">Entrega: {{ o.address }}{% if o.cep %} · CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}{% endif %}</p>
+<p class="mute">Pagamento: {{ metodos.get(o.payment_method, o.payment_method or '—') }}{% if o.prazo %} em {{ o.prazo }} dias{% endif %} · feito em {{ o.created_at|hora_br if o.created_at }}
+{% if cliente %} · <a class="link" href="{{ url_for('admin.cliente', uid=cliente.id) }}">ver cadastro</a>{% endif %}</p>
+</div>
+
+<div class="box"><h2>Itens</h2>
+{% for i in o.items %}<div class="sum-row"><span>{{ i.quantity }}× {{ i.product.name }}{% if i.product.codigo %} <small class="mute">{{ i.product.codigo }}</small>{% endif %}{% if i.fracionado %} <span class="tag">fracionado</span>{% endif %}</span><b>{{ (i.unit_price * i.quantity)|brl }}</b></div>{% endfor %}
+{% include "shop/_cupom_frete.html" %}
+<div class="sum-row total"><span>Total</span><b>{{ o.total|brl }}</b></div>
+{% if (pode('financeiro') or pode('custos')) and avisos_margem %}<p class="msg" style="margin-top:10px">Margem: {{ avisos_margem|join('; ') }}.</p>{% endif %}
+{% if (pode('financeiro') or pode('custos')) and lucro_pedido %}{% set lp = lucro_pedido %}
+<p class="mute pequeno" style="margin-top:10px">Lucro estimado: <b class="{{ 'gratis' if lp.lucro >= 0 }}">{{ lp.lucro|brl }}</b> ({{ lp.margem|uma_casa }}% da receita) · custo {{ lp.custo|brl }} · impostos e despesas {{ lp.impostos|brl }}{% if lp.sem_custo %} · {{ lp.sem_custo|length }} item(ns) sem custo{% endif %}</p>{% endif %}
+{% if pode('financeiro') and o.status == 'pendente' and o.payment_method in ('boleto', 'faturado') %}<form method="post" action="{{ url_for('admin.pedido_boletos', oid=o.id) }}" id="boletos" style="margin-top:8px"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+{% for l in o.lancamentos if l.boleto_id %}<p class="pequeno">Boleto {{ l.parcela or '' }} · vence {{ l.vencimento.strftime('%d/%m/%Y') }} · {{ 'pago' if l.pago_em else 'em aberto' }} · <a class="link" href="{{ l.boleto_link }}" target="_blank" rel="noopener">abrir</a></p>{% endfor %}
+{% if o.lancamentos|rejectattr('boleto_id')|rejectattr('pago_em')|list %}<button class="btn ghost">Gerar boletos Efí e mandar ao cliente</button>{% endif %}</form>{% endif %}
+{% if pode('financeiro') and o.lancamentos %}<p class="mute pequeno">Parcelas: {% for l in o.lancamentos %}{{ l.vencimento.strftime('%d/%m') }} {{ l.valor|brl }} ({{ 'recebida' if l.pago_em else 'em aberto' }}){{ ', ' if not loop.last }}{% endfor %} · <a class="link" href="{{ url_for('admin.financeiro_pagina', tipo='receber') }}">Financeiro</a></p>{% endif %}</div>
+
+<div class="box" id="editar"><h2>Editar pedido</h2>
+{% if bloqueio_edicao %}<p class="mute">Não dá para editar este pedido: {{ bloqueio_edicao }}{% if o.status == 'orcamento' %} <a class="link" href="{{ url_for('admin.orcamento', oid=o.id) }}">Revisar orçamento</a>{% endif %}</p>
+<p class="mute pequeno">A edição vale para pedidos <b>aguardando pagamento</b>, ainda não enviados.</p>
+{% else %}<p class="mute">Para combinar quantidades, preços ou itens com o cliente antes do pagamento. O estoque é acertado na hora (quantidade 0 tira o item). O desconto do cupom em % é recalculado.</p>
+<form method="post" action="{{ url_for('admin.pedido_editar', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<div style="overflow-x:auto"><table>
+<tr><th>Produto</th><th>Estoque</th><th>Quantidade</th><th>Preço unitário (R$)</th></tr>
+{% for i in o.items %}<tr><td>{{ i.product.name }}{% if i.fracionado %} <span class="tag">fracionado</span>{% endif %}<br><small class="mute">tabela {{ i.product.price|brl }}</small></td>
+<td>{{ i.product.stock }}</td>
+<td><input name="qtd_{{ i.id }}" type="number" min="0" value="{{ i.quantity }}" class="qtd-recompra" aria-label="Quantidade de {{ i.product.name }}"></td>
+<td><input name="preco_{{ i.id }}" inputmode="decimal" value="{{ i.unit_price|duas_casas }}" class="qtd-recompra" aria-label="Preço de {{ i.product.name }}"></td></tr>{% endfor %}
+<tr><td colspan="2"><label>Incluir produto (código, nº ou nome exato)<input name="novo_produto" maxlength="160" placeholder="Ex.: DISCO-7"></label></td>
+<td><label>Qtd<input name="novo_qtd" type="number" min="1" class="qtd-recompra"></label></td><td class="mute pequeno">preço da tabela do cliente</td></tr>
+</table></div>
+<div class="f"><label>Frete (R$)<input name="frete" inputmode="decimal" value="{{ o.frete|duas_casas }}"></label>
+<label><span><input type="checkbox" name="avisar" checked> Avisar o cliente por e-mail com o pedido atualizado</span></label>
+<div><button class="btn">Salvar alterações</button></div></div></form>{% endif %}</div>
+
+{% if o.status != 'cancelado' %}
+{% if etiqueta %}{% set et = etiqueta %}<section class="box" id="etiqueta"><h2>Etiqueta (Melhor Envio){% if et.sandbox %} <span class="tag">ambiente de testes</span>{% endif %}</h2>
+{% if et.ativas %}<div style="overflow-x:auto"><table><tr><th>Volume</th><th>Serviço</th><th>Valor</th><th>Situação</th><th>Rastreio</th><th></th></tr>
+{% for e in et.ativas %}<tr><td>{{ loop.index }}<br><small class="mute">{{ e.protocolo }}</small></td><td>{{ e.servico }}</td><td class="num">{{ e.valor|brl }}</td>
+<td>{{ et.situacoes.get(e.situacao, e.situacao) }}{% if e.erro %}<br><small class="erro-texto">{{ e.erro }}</small>{% endif %}</td>
+<td>{% if e.rastreio %}<a class="link" href="https://www.melhorrastreio.com.br/rastreio/{{ e.rastreio }}" target="_blank" rel="noopener">{{ e.rastreio }}</a>{% else %}—{% endif %}</td>
+<td>{% if e.link_impressao %}<a class="btn ghost" href="{{ e.link_impressao }}" target="_blank" rel="noopener">Imprimir</a>{% endif %}
+{% if e.situacao in ('carrinho', 'paga', 'gerada') %}<form method="post" action="{{ url_for('admin.pedido_etiqueta', oid=o.id) }}" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="cancelar"><input type="hidden" name="eid" value="{{ e.id }}"><button class="btn ghost perigo" data-confirmar="Cancelar esta etiqueta? {{ 'Ela sai do carrinho do Melhor Envio.' if e.situacao == 'carrinho' else 'O valor volta para a carteira do Melhor Envio.' }}">Cancelar</button></form>{% endif %}</td></tr>{% endfor %}
+</table></div>
+<form class="acts-row" method="post" action="{{ url_for('admin.pedido_etiqueta', oid=o.id) }}" style="margin-top:12px"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+{% if et.ativas|selectattr('situacao', 'in', ['carrinho', 'paga'])|list or et.ativas|selectattr('erro')|list %}<button class="btn" name="acao" value="continuar" data-confirmar="Continuar de onde parou? Se a etiqueta ainda não foi paga, o valor sai do saldo da carteira do Melhor Envio.">Continuar</button>{% endif %}
+<button class="btn ghost" name="acao" value="rastrear">Atualizar rastreio</button></form>
+<p class="mute pequeno">Imprima a etiqueta, cole na caixa e poste numa agência (ou espere a coleta, conforme o serviço). O rastreio é conferido sozinho várias vezes por dia{% if et.ultima %} (última vez: {{ et.ultima }}){% endif %}: quando a transportadora registra a postagem, o pedido vira enviado e o cliente recebe o código por e-mail; na entrega, vira entregue. <b>Atualizar rastreio</b> confere agora.</p>
+{% else %}
+{% if et.faltam %}<p class="msg">Para comprar etiquetas, complete os dados da empresa (remetente) em <a class="link" href="{{ url_for('admin.fiscal_config') if pode('fiscal') else '#' }}">Nota fiscal › Configuração</a>: {{ et.faltam|join(', ') }}.</p>{% endif %}
+<form class="f" method="post" action="{{ url_for('admin.pedido_etiqueta', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="comprar">
+<p class="wide mute pequeno">Confira o destinatário: o endereço foi separado pelo CEP e pelo texto do pedido ({{ o.address }}).</p>
+<label>Nome ou razão social<input name="nome" value="{{ et.f.nome }}" maxlength="60" required></label>
+<label>CPF ou CNPJ<input name="documento" value="{{ et.f.documento }}" inputmode="numeric" required></label>
+<label>Inscrição estadual (se tiver)<input name="ie" value="{{ et.f.ie }}" inputmode="numeric"></label>
+<label>Telefone<input name="telefone" value="{{ et.f.telefone }}" inputmode="tel"></label>
+<label>E-mail<input name="email" value="{{ et.f.email }}" type="email"></label>
+<label>CEP<input name="cep" value="{{ et.f.cep }}" inputmode="numeric" required></label>
+<label>Rua<input name="logradouro" value="{{ et.f.logradouro }}" maxlength="60" required></label>
+<label>Número<input name="numero" value="{{ et.f.numero }}" maxlength="20" required></label>
+<label>Complemento<input name="complemento" value="{{ et.f.complemento }}" maxlength="60"></label>
+<label>Bairro<input name="bairro" value="{{ et.f.bairro }}" maxlength="60" required></label>
+<label>Cidade<input name="municipio" value="{{ et.f.municipio }}" maxlength="60" required></label>
+<label>Estado<input name="uf" value="{{ et.f.uf }}" maxlength="2" required></label>
+<label>Serviço<select name="servico">{% for k, n in et.servicos.items() %}<option value="{{ k }}" {{ 'selected' if k == et.f.servico }}>{{ n }}</option>{% endfor %}</select></label>
+<fieldset class="wide"><legend>Documento do envio</legend>{% for k, n in et.tipos.items() %}<label><span><input type="radio" name="tipo" value="{{ k }}" {{ 'checked' if k == et.f.tipo }}> {{ n }}</span></label>{% endfor %}
+<label>Chave da NF-e (44 números)<input name="chave" value="{{ et.f.chave }}" inputmode="numeric" maxlength="54"></label>
+<p class="mute pequeno">Envio comercial vai com a nota fiscal. A declaração de conteúdo só vale para cliente pessoa física ou empresa não contribuinte do ICMS (sem inscrição estadual).</p></fieldset>
+<p class="wide">{% if et.cotacao %}Cotação agora: <b>{{ et.cotacao.custo|brl }}</b> ({{ et.cotacao.nome }}{% if et.cotacao.prazo %}, {{ et.cotacao.prazo }}{% endif %}{% if et.cotacao.pacotes|length > 1 %}, {{ et.cotacao.pacotes|length }} volumes{% endif %}). O cliente pagou {{ 'frete grátis' if not o.frete else o.frete|brl }}{% if o.frete_servico %} ({{ o.frete_servico }}){% endif %}.{% else %}<span class="mute">Sem cotação para este serviço agora (o valor aparece na compra).</span>{% endif %}</p>
+<div class="wide"><button class="btn" {{ 'disabled' if et.faltam }} data-confirmar="Comprar a etiqueta? O valor sai do saldo da sua carteira no Melhor Envio{{ ' (ambiente de testes: saldo fictício)' if et.sandbox }}.">Comprar etiqueta</button></div></form>
+{% endif %}
+{% if et.canceladas %}<p class="mute pequeno">Canceladas: {% for e in et.canceladas %}{{ e.protocolo or e.me_id[:8] }} ({{ e.valor|brl }}){{ ', ' if not loop.last }}{% endfor %}.</p>{% endif %}
+</section>
+{% endif %}
+<form class="f box" id="envio" method="post" action="{{ url_for('admin.pedido_envio', oid=o.id) }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<h2 class="wide">Envio <small class="mute">{{ envio[o.envio] }}{% if o.enviado_em %} · enviado em {{ o.enviado_em.strftime('%d/%m/%Y') }}{% endif %}{% if o.entregue_em %} · entregue em {{ o.entregue_em.strftime('%d/%m/%Y') }}{% endif %}</small></h2>
+{% if o.status == 'pendente' and not o.envio and o.payment_method != 'faturado' %}<p class="wide msg">Este pedido ainda aguarda pagamento. Confira antes de enviar.</p>{% endif %}
+<label>Transportadora<input name="transportadora" value="{{ o.transportadora or '' }}" maxlength="80" required placeholder="Correios, Jadlog, Entrega própria..."></label>
+<label>Código de rastreio (opcional)<input name="rastreio" value="{{ o.rastreio or '' }}" maxlength="80" placeholder="AA123456789BR"></label>
+<label class="wide">Link para acompanhar (opcional)<input name="rastreio_link" type="url" value="{{ o.rastreio_link or '' }}" maxlength="300" placeholder="https://..."></label>
+{% if o.envio %}<label class="wide"><span><input type="checkbox" name="avisar"> Avisar o cliente de novo por e-mail com os dados novos</span></label>{% endif %}
+<div class="wide acts-row"><button class="btn" name="acao" value="enviar">{{ 'Salvar dados do envio' if o.envio else 'Marcar como enviado e avisar o cliente' }}</button>
+{% if o.envio == 'enviado' %}<button class="btn ghost" name="acao" value="entregue" formnovalidate>Marcar como entregue</button>{% endif %}
+{% if o.envio %}<button class="btn ghost" name="acao" value="desfazer" formnovalidate data-confirmar="Voltar uma etapa da entrega?">Desfazer última etapa</button>{% endif %}</div>
+</form>
+{% endif %}
+
+{% if pode('fiscal') %}<div class="box" id="nfe"><h2>Nota fiscal (NF-e)</h2>
+{% set validas = o.notas|selectattr('status', 'equalto', 'autorizada')|list %}
+{% for n in o.notas %}<p><a class="link" href="{{ url_for('admin.nota', nid=n.id) }}">NF-e {{ n.numero }}</a>{% if n.ambiente == 2 %} <small class="mute">(homologação)</small>{% endif %} ·
+<span class="tag {{ '' if n.status == 'autorizada' else 'off' }}">{{ {'autorizada': 'Autorizada', 'rejeitada': 'Rejeitada', 'cancelada': 'Cancelada', 'denegada': 'Denegada', 'erro': 'Sem resposta', 'processando': 'Processando', 'inutilizada': 'Inutilizada'}.get(n.status, n.status) }}</span>
+{% if n.status in ('rejeitada', 'erro') %}<small class="mute">{{ n.cstat }} {{ n.motivo|truncate(100) }}</small>{% endif %}</p>{% endfor %}
+{% if o.status in ('pendente', 'pago') %}<a class="btn" href="{{ url_for('admin.pedido_nfe', oid=o.id) }}">{{ 'Ver / emitir NF-e' if o.notas else 'Emitir NF-e' }}</a>
+{% elif not o.notas %}<p class="mute">A nota é emitida para pedidos aguardando pagamento ou pagos.</p>{% endif %}</div>{% endif %}
+
+<div class="box" id="documentos"><h2>Documentos <small class="mute">o cliente baixa em Meus pedidos</small></h2>
+{% for a in o.arquivos %}<div class="sum-row"><span><b>{{ tipos[a.tipo] }}</b> · <a class="link" href="{{ url_for('admin.pedido_arquivo_baixar', oid=o.id, aid=a.id) }}">{{ a.nome }}</a> <small class="mute">{{ tamanho(a.tamanho) }} · {{ a.criado_em.strftime('%d/%m/%Y') if a.criado_em }}</small></span>
+<form method="post" action="{{ url_for('admin.pedido_arquivo_excluir', oid=o.id, aid=a.id) }}" data-confirmar="Remover {{ a.nome }}? O cliente deixa de ver o arquivo."><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link">Remover</button></form></div>
+{% else %}<p class="mute">Nenhum documento ainda.</p>{% endfor %}
+{% if o.arquivos|length < max_arquivos %}
+<form class="f" method="post" action="{{ url_for('admin.pedido_arquivo_enviar', oid=o.id) }}" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Tipo<select name="tipo">{% for k, n in tipos.items() %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></label>
+<label>Arquivo (PDF, XML ou imagem, até 4,5 MB)<input type="file" name="arquivo" accept="application/pdf,.pdf,.xml,text/xml,application/xml,image/png,image/jpeg" required></label>
+<label class="wide"><span><input type="checkbox" name="avisar" checked> Avisar o cliente por e-mail</span></label>
+<div><button class="btn">Anexar</button></div></form>{% endif %}
+</div>
+
+{% if o.devolucoes %}<section class="box"><h2>Devoluções e trocas</h2>{% for d in o.devolucoes %}<p><a class="link" href="{{ url_for('admin.devolucao', did=d.id) }}">#{{ d.id }}</a> · {{ d.criado_em|hora_br }} · {{ 'Troca' if d.tipo == 'troca' else 'Devolução' }} · <b>{{ d.status }}</b>{% if d.valor %} · reembolso {{ d.valor|brl }}{% endif %}</p>{% endfor %}</section>{% endif %}
+{% include "_historico.html" %}
+
+{% if acesso_total %}<form class="box" method="post" action="{{ url_for('admin.orders_excluir') }}" data-confirmar="Excluir de vez o pedido #{{ o.id }}? Itens e documentos anexados somem{{ ', e o estoque volta para a loja' if o.status in ('pendente', 'pago') }}. Não dá para desfazer.">
+<input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="oid" value="{{ o.id }}">
+<h2>Excluir pedido</h2>
+<p class="mute">Para pedidos de teste ou lançados por engano. {% if o.status in ('pendente', 'pago') %}O estoque dos itens volta para a loja.{% endif %} Se for só desistência do cliente, prefira <b>cancelar</b>: o pedido fica no histórico.</p>
+{% if o.status == 'pago' or o.envio %}<p class="msg">Atenção: este pedido já foi {{ 'pago' if o.status == 'pago' }}{{ ' e ' if o.status == 'pago' and o.envio }}{{ 'enviado' if o.envio }}. Excluir apaga o registro da venda.</p>{% endif %}
+<button class="btn ghost perigo">Excluir pedido #{{ o.id }}</button></form>{% endif %}
+{% endblock %}

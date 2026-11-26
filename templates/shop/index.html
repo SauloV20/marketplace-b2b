@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set categoria_atual = (categories|selectattr('id', 'equalto', cat)|first) if cat else none %}
+{% block title %}{% if categoria_atual %}{{ categoria_atual.name }} com preço de atacado · Marketplace B2B{% elif q %}Busca: {{ q }} · Marketplace B2B{% else %}Marketplace B2B · Ferramentas industriais com preço de atacado{% endif %}{% endblock %}
+{% block head %}<meta name="description" content="{% if categoria_atual %}{{ categoria_atual.name }} para indústria com preço de atacado, faturamento para empresas e orçamento sob medida no Marketplace B2B.{% else %}Ferramentas de usinagem, serras, consumíveis de solda, abrasivos e EPIs com preço de atacado, boleto faturado para empresas e orçamento sob medida.{% endif %}">
+{% if not q %}<link rel="canonical" href="{{ site_base }}/{% if cat %}?cat={{ cat }}{% endif %}">{% endif %}
+<meta property="og:title" content="{{ categoria_atual.name ~ ' · Marketplace B2B' if categoria_atual else 'Marketplace B2B · Ferramentas industriais com preço de atacado' }}">
+<meta property="og:type" content="website">
+{% if not cat and not q %}<script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "Organization", "name": "Marketplace B2B", "url": site_base ~ "/"}|tojson }}</script>{% endif %}
+{% endblock %}
+{% block body %}
+{% from "shop/_icones.html" import icon %}
+
+{% include "shop/_header.html" %}
+<main class="wrap vitrine">
+{% if not q and not cat %}
+{% if slides %}
+<section class="carrossel" aria-roledescription="carrossel" aria-label="Destaques">
+<div class="slides" id="slides">
+{% for s in slides %}
+<div class="slide cor-{{ s.cor }} {{ 'so-imagem' if s.so_imagem }}" role="group" aria-roledescription="slide" aria-label="{{ loop.index }} de {{ slides|length }}">
+{% if s.so_imagem %}{% if s.link %}<a href="{{ s.link }}">{% endif %}<img src="{{ s.imagem }}" alt="{{ s.subtitulo or 'Destaque Marketplace B2B' }}" {{ 'loading=lazy' if not loop.first }}>{% if s.link %}</a>{% endif %}
+{% else %}
+<div class="slide-txt">
+{% if s.produto %}<span class="banner-sel">Destaque</span>{% endif %}
+<h2>{{ s.titulo }}</h2>{% if s.subtitulo %}<p>{{ s.subtitulo }}</p>{% endif %}
+{% if s.produto %}{% if s.preco is not none %}<p class="slide-preco">{{ s.preco|brl }}<small> /un</small></p>{% elif not cliente_logado %}<p class="slide-preco-login">Entre para ver o preço</p>{% endif %}{% endif %}
+{% if s.link and s.texto_botao %}<a class="btn destaque" href="{{ s.link }}">{{ s.texto_botao }}</a>{% endif %}
+</div>
+<div class="slide-arte">{% if s.imagem %}<img src="{{ s.imagem }}" alt="" {{ 'loading=lazy' if not loop.first }}>{% elif s.produto_img %}<img src="{{ s.produto_img }}" alt="{{ s.produto.name if s.produto else s.titulo }}" {{ 'loading=lazy' if not loop.first }}>{% elif s.produto %}{{ icon(s.produto.category.name) }}{% else %}{{ icon('') }}{% endif %}</div>
+{% endif %}
+</div>
+{% endfor %}
+</div>
+{% if slides|length > 1 %}<button class="seta ant" type="button" aria-label="Destaque anterior" aria-controls="slides">‹</button>
+<button class="seta prox" type="button" aria-label="Próximo destaque" aria-controls="slides">›</button>
+<div class="pontos">{% for s in slides %}<button type="button" aria-label="Ir para o destaque {{ loop.index }}" {{ 'aria-current=true' if loop.first }}></button>{% endfor %}</div>{% endif %}
+</section>
+{% else %}
+<section class="banner">
+<div><span class="banner-sel">Atacado industrial</span>
+<h1>Tudo para usinagem, solda e segurança</h1>
+<p>Ferramentas de corte, serras, consumíveis de solda e EPIs com preço de atacado, faturamento para empresas e orçamento sob medida.</p>
+{% if not cliente_logado %}<p class="banner-cta"><a class="btn destaque" href="{{ url_for('account.cadastro') }}">Cadastrar empresa ou CPF</a> <a class="btn claro" href="{{ url_for('account.entrar') }}">Entrar para ver preços</a></p>
+{% elif cliente_logado.tipo == 'pj' and not cliente_logado.empresa_aprovada %}<p class="banner-cta"><span class="selo-info">Cadastro da empresa em análise: por enquanto você compra com os preços de tabela.</span></p>
+{% elif empresa %}<p class="banner-cta"><span class="selo-info">{{ cliente_logado.razao_social }}: condições de empresa ativas{% if cliente_logado.desconto %} · {{ cliente_logado.desconto|num }}% de desconto{% endif %}</span></p>{% endif %}
+</div>
+<div class="banner-arte" aria-hidden="true">{{ icon('Usinagem') }}</div>
+</section>
+{% endif %}
+<div class="atalhos">
+{% if not cliente_logado %}
+<a class="atalho" href="{{ url_for('account.entrar') }}"><h3>Entre na sua conta</h3><span class="atalho-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><p>Veja os preços e compre com as condições da sua empresa.</p><span class="atalho-btn">Entrar</span></a>
+<a class="atalho" href="{{ url_for('account.cadastro') }}"><h3>Cadastre sua empresa</h3><span class="atalho-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 21V8l6-4v4l6-4v4l6-4v17z"/><path d="M7 17h2M11 17h2M15 17h2"/></svg></span><p>Com CNPJ aprovado, você ganha desconto e boleto faturado.</p><span class="atalho-btn">Criar conta</span></a>
+{% else %}
+<a class="atalho" href="{{ url_for('account.pedidos') }}"><h3>Seus pedidos</h3><span class="atalho-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></span><p>Acompanhe pagamentos e orçamentos e compre de novo com um clique.</p><span class="atalho-btn">Ver pedidos</span></a>
+<a class="atalho" href="{{ url_for('shop.cart') }}"><h3>Seu carrinho</h3><span class="atalho-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.2a1 1 0 0 0 1-.8L19 8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg></span><p>{{ cart_count }} item(ns) esperando por você.</p><span class="atalho-btn">Ir ao carrinho</span></a>
+{% endif %}
+<div class="atalho"><h3>Preço de atacado</h3><span class="atalho-ic verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></span><p>Quanto mais você leva, menor o preço de cada unidade.</p><span class="atalho-nota">Faixas em cada produto</span></div>
+<div class="atalho"><h3>Peça um orçamento</h3><span class="atalho-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg></span><p>Monte o carrinho e escolha Orçamento na finalização.</p><span class="atalho-nota">Resposta por e-mail</span></div>
+<div class="atalho"><h3>Compra segura</h3><span class="atalho-ic verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg></span><p>Pix, boleto à vista ou faturado para CNPJ aprovado.</p><span class="atalho-nota">Dados protegidos</span></div>
+</div>
+{% endif %}
+
+{% set titulo_principal = cat or q or (not q and not cat and slides) %}<div class="titulo-lista"><{{ 'h1' if titulo_principal else 'h2' }}>{% if so_ofertas %}Ofertas{% if q or cat %} · {% endif %}{% endif %}{% if q %}Resultados para “{{ q }}”{% elif cat %}{% for c in categories if c.id == cat %}{{ c.name }}{% endfor %}{% elif not so_ofertas %}Produtos em destaque{% endif %}</{{ 'h1' if titulo_principal else 'h2' }}>
+<span class="mute">{{ products|length }} produto(s)</span></div>
+<form class="filtros-loja" method="get" data-auto-filtro>
+{% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}{% if cat %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+{% if ha_ofertas or so_ofertas %}<label class="check"><input type="checkbox" name="ofertas" value="1" {{ 'checked' if so_ofertas }}> Só ofertas</label>{% endif %}
+<label>Ordenar por<select name="ordem">{% for k, n in ordens.items() %}<option value="{{ k }}" {{ 'selected' if k == ordem }}>{{ n }}</option>{% endfor %}</select></label>
+<label class="check"><input type="checkbox" name="disp" value="1" {{ 'checked' if so_disponiveis }}> Só com estoque</label>
+{% if cliente_logado %}<label>Preço de (R$)<input name="min" inputmode="decimal" value="{{ filtros.get('min', '') }}" placeholder="0,00" size="7"></label>
+<label>até (R$)<input name="max" inputmode="decimal" value="{{ filtros.get('max', '') }}" placeholder="sem limite" size="7"></label>{% endif %}
+<button class="btn ghost">Aplicar</button>{% if filtros %} <a class="link" href="{{ url_for('shop.index', q=q or None, cat=cat) }}">Limpar filtros</a>{% endif %}</form>
+<div class="grid">
+{% for p in products %}
+{% set pode = disponivel(p) %}
+<article class="card {{ 'esgotado' if not pode }}">
+<a class="thumb" href="{{ link_produto(p) }}" aria-label="{{ p.name }}">{% set foto = foto_produto(p) %}{% if foto %}<img src="{{ foto }}" alt="{{ p.name }}" loading="lazy">{% else %}{{ icon(p.category.name) }}{% endif %}
+<span class="selos">{% if em_oferta(p) %}<span class="selo oferta">Oferta</span>{% endif %}{% if p.faixas %}<span class="selo atacado">Atacado</span>{% endif %}{% if p.fracionavel %}<span class="selo">Fraciona</span>{% endif %}</span></a>
+<div class="b"><span class="cat">{{ p.category.name }}</span><h3><a href="{{ link_produto(p) }}">{{ p.name }}</a></h3>
+{% if cliente_logado %}{% set de = tabela_no_estado(p) %}<div class="price">{% if precos[p.id] < de %}<s class="de">{{ de|brl }}</s> {% endif %}{{ precos[p.id]|brl }}<small> /un</small></div>
+{% if em_oferta(p) and p.promo_fim %}<small class="oferta-ate">Oferta até {{ p.promo_fim.strftime('%d/%m') }}</small>{% endif %}
+{% for q, v in faixas[p.id] %}{% set off = ((1 - v / precos[p.id]) * 100)|round|int if precos[p.id] else 0 %}<small class="tier">{{ v|brl }} a partir de {{ q }} un{% if off > 0 %} <b>{{ off }}% OFF</b>{% endif %}</small>{% endfor %}
+{% if p.qtd_minima > 1 or p.multiplo > 1 %}<small class="regra">{% if p.qtd_minima > 1 %}Mínimo {{ p.qtd_minima }} un{% endif %}{% if p.qtd_minima > 1 and p.multiplo > 1 %} · {% endif %}{% if p.multiplo > 1 %}{% if p.fracionavel %}Embalagem com {{ p.multiplo }}{% if p.acrescimo_fracionado %} (avulsa +{{ p.acrescimo_fracionado|num }}%){% endif %}{% else %}Múltiplos de {{ p.multiplo }}{% endif %}{% endif %}</small>{% endif %}
+{% if pode %}<button class="btn add" type="button" data-add="{{ p.id }}">Adicionar</button>{% else %}<a class="tag off" href="{{ link_produto(p) }}">Indisponível · avise-me</a>{% endif %}
+{% else %}<a class="login-price" href="{{ url_for('account.entrar') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Entre para ver o preço</a>{% endif %}</div></article>
+{% else %}<p class="empty">Nenhum produto encontrado{{ ' com esses filtros' if filtros }}. Tente outra busca ou categoria{% if filtros %} ou <a class="link" href="{{ url_for('shop.index', q=q or None, cat=cat) }}">limpe os filtros</a>{% endif %}.</p>{% endfor %}
+</div></main>
+
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='shop.js') }}"></script>
+<script src="{{ url_for('static', filename='carrossel.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Romaneio do pedido #' ~ pedidos[0].id if pedidos|length == 1 else pedidos|length ~ ' romaneios' }} · Marketplace B2B{% endblock %}
+{% block head %}<style>
+{% include "admin/_estilo_impressao.html" %}
+.folha{border:1px solid #ccc;border-radius:6px;padding:18px 20px;margin-bottom:24px}
+.folha .caixa{width:22px;height:22px;border:2px solid #333;display:inline-block}
+.assinaturas{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px}
+.assinaturas div{border-top:1px solid #333;padding-top:4px;font-size:12px;text-align:center}
+.etiqueta{border:2px dashed #333;border-radius:4px;padding:16px 18px;width:10cm;min-height:13cm;box-sizing:border-box;font-size:15px;display:flex;flex-direction:column;gap:10px}
+.etiqueta .rotulo{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#444}
+.etiqueta .dest{font-size:18px;line-height:1.35}
+.etiqueta .cep{font-size:24px;font-weight:800;letter-spacing:.05em}
+.etiqueta .pedido{font-size:22px;font-weight:800}
+@media print{
+  .barra-imprimir{display:none}
+  .impressao{padding:0;max-width:none}
+  .folha{border:0;padding:0;margin:0}
+  .quebra{page-break-after:always;break-after:page}
+  .chat,.rodape{display:none!important}
+}
+</style>{% endblock %}
+{% block body %}
+<main class="impressao">
+<div class="barra-imprimir"><a class="link" href="{{ url_for('admin.pedido', oid=pedidos[0].id) if pedidos|length == 1 else url_for('admin.orders') }}">← Voltar</a>
+<span class="mute">{{ pedidos|length }} pedido(s): romaneio de separação e etiqueta de cada um</span>
+<button class="btn" type="button" data-imprimir>Imprimir</button></div>
+{% for o in pedidos %}
+{% set nome_dest = o.razao_social or o.customer_name %}
+<section class="folha quebra">
+<h1>Romaneio de separação · Pedido #{{ o.id }}</h1>
+<p>Feito em {{ o.created_at|hora_br }} · {{ status.get(o.status, o.status) }} · {{ metodos.get(o.payment_method, o.payment_method or '-') }}{% if o.prazo %} {{ o.prazo }} dias{% endif %}</p>
+<div class="dados">
+<div><h2>Cliente</h2><p><b>{{ nome_dest }}</b></p>{% if o.documento %}<p>{{ 'CNPJ' if o.documento|length == 14 else 'CPF' }} {{ fmt_doc(o.documento) }}{% if o.inscricao_estadual %} · IE {{ o.inscricao_estadual }}{% endif %}</p>{% endif %}
+{% if o.razao_social %}<p>A/C {{ o.customer_name }}</p>{% endif %}<p>{{ o.customer_phone }}</p></div>
+<div><h2>Entrega</h2><p>{{ o.address }}</p>{% if o.cep %}<p>CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}</p>{% endif %}
+<p>{% if o.transportadora %}{{ o.transportadora }}{% if o.rastreio %} · {{ o.rastreio }}{% endif %}{% elif o.frete_servico or o.frete_prazo %}{{ [o.frete_servico or '', ('prazo ' ~ o.frete_prazo) if o.frete_prazo else '']|select|join(' · ') }}{% else %}Transportadora: ____________{% endif %}</p></div></div>
+<h2>Itens</h2>
+<table><tr><th style="width:34px">OK</th><th>Código</th><th>Produto</th><th class="num">Qtd</th><th class="num">Peso (kg)</th></tr>
+{% for i in o.items %}<tr><td><span class="caixa"></span></td><td>{{ i.product.codigo or '-' }}</td><td>{{ i.product.name }}{% if i.fracionado %} <b>(avulsas, fora da embalagem)</b>{% elif i.product.multiplo > 1 %} <small>({{ (i.quantity // i.product.multiplo) }} emb. de {{ i.product.multiplo }})</small>{% endif %}</td>
+<td class="num"><b>{{ i.quantity }}</b></td><td class="num">{{ ((i.product.peso_kg or 0) * i.quantity)|duas_casas }}</td></tr>{% endfor %}
+<tr><td colspan="3"><b>Total</b></td><td class="num"><b>{{ o.items|sum(attribute='quantity') }}</b></td><td class="num">{{ pesos[o.id]|duas_casas }}</td></tr></table>
+<p>Volumes: ______ &nbsp;&nbsp; Separado por: ______________________ &nbsp;&nbsp; Data: ___/___/______</p>
+<div class="assinaturas"><div>Conferido por</div><div>Recebido por (cliente)</div></div>
+</section>
+<section class="folha quebra">
+<div class="etiqueta">
+<div><span class="rotulo">Destinatário</span>
+<div class="dest"><b>{{ nome_dest }}</b>{% if o.razao_social %}<br>A/C {{ o.customer_name }}{% endif %}<br>{{ o.address }}</div>
+{% if o.cep %}<div class="cep">CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}</div>{% endif %}
+<div>{{ o.customer_phone }}</div></div>
+<div><span class="rotulo">Remetente</span>
+<div>{% if empresa.empresa_razao_social %}<b>{{ empresa.empresa_razao_social }}</b>{% if empresa.empresa_cnpj %} · CNPJ {{ empresa.empresa_cnpj }}{% endif %}<br>{{ empresa.empresa_endereco }}{% else %}<b>Marketplace B2B</b><br><small>(preencha os dados da empresa em Regras de venda)</small>{% endif %}</div></div>
+<div class="pedido">Pedido #{{ o.id }}</div>
+<div>{% if o.transportadora %}{{ o.transportadora }}{% if o.rastreio %}<br>Rastreio: {{ o.rastreio }}{% endif %}{% endif %}</div>
+<div>Volume ____ de ____</div>
+</div></section>
+{% endfor %}
+</main>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<h1>Equipe do painel</h1>
+<div class="box"><p>Cada pessoa entra com o próprio e-mail e senha e vê só as áreas que você liberar. O histórico dos pedidos mostra quem fez cada coisa.</p>
+<p class="mute">Frete, backup, regras de venda, excluir pedidos e esta página da equipe ficam só com quem tem <b>acesso total</b>. Os avisos por e-mail (pedido novo, empresa para aprovar, estoque baixo) vão para quem cuida de cada área.</p></div>
+
+{% if link_convite %}<div class="box"><p><b>Link do convite</b> (vale 7 dias, envie para a pessoa por WhatsApp ou e-mail):</p>
+<p><input value="{{ link_convite }}" readonly data-selecionar style="width:100%"></p></div>{% endif %}
+
+{% for u in equipe %}{% set minhas = areas_de(u) %}
+<form class="f box regra" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="uid" value="{{ u.id }}">
+<h2>{{ u.name }} <small class="mute">{{ u.email }}{% if u.id == eu.id %} · você{% endif %}{% if u.totp_segredo %} · verificação em duas etapas ativa{% endif %}</small></h2>
+<p class="wide mute">{{ texto(u) }}</p>
+{% if u.id != eu.id %}
+<label class="wide"><span><input type="radio" name="acesso" value="tudo" {{ 'checked' if total(u) }}> Acesso total (dono)</span></label>
+<label class="wide"><span><input type="radio" name="acesso" value="areas" {{ 'checked' if not total(u) }}> Só estas áreas:</span></label>
+{% for k, nome in areas.items() %}<label><span><input type="checkbox" name="area_{{ k }}" {{ 'checked' if k in minhas and not total(u) }}> {{ nome }}</span></label>{% endfor %}
+<div class="wide acts-row"><button class="btn" name="acao" value="salvar">Salvar acesso</button>
+<button class="btn ghost" name="acao" value="reenviar" formnovalidate>Reenviar convite</button>
+<button class="btn ghost perigo" name="acao" value="remover" formnovalidate data-confirmar="Tirar o acesso desta pessoa ao painel?">Remover do painel</button></div>
+{% endif %}
+</form>
+{% endfor %}
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="convidar">
+<h2 class="wide">Convidar pessoa</h2>
+<label>Nome<input name="nome" required maxlength="120"></label>
+<label>E-mail<input name="email" type="email" required maxlength="120"></label>
+<label class="wide"><span><input type="radio" name="acesso" value="areas" checked> Só estas áreas:</span></label>
+{% for k, nome in areas.items() %}<label><span><input type="checkbox" name="area_{{ k }}" {{ 'checked' if k == 'pedidos' }}> {{ nome }}</span></label>{% endfor %}
+<label class="wide"><span><input type="radio" name="acesso" value="tudo"> Acesso total (dono: inclui frete, backup, regras e equipe)</span></label>
+<p class="wide mute">A pessoa recebe um e-mail com um link para criar a senha (vale 7 dias). Ela pode ativar a verificação em duas etapas em Minha conta.</p>
+<div><button class="btn">Enviar convite</button></div></form>
+{% endblock %}

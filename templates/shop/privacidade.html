@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Política de Privacidade · Marketplace B2B{% endblock %}
+{% block head %}<meta name="description" content="Como o Marketplace B2B coleta, usa e protege os dados pessoais de clientes, conforme a LGPD.">
+<link rel="canonical" href="{{ site_base }}/privacidade">{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page narrow legal">
+<h1>Política de Privacidade</h1>
+<p class="mute">Última atualização: {{ versao[8:10] }}/{{ versao[5:7] }}/{{ versao[:4] }}</p>
+
+<p>Esta política explica quais dados pessoais a loja Marketplace B2B coleta, para que usa, com quem compartilha e como você exerce os seus direitos, conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, “LGPD”).</p>
+
+<h2>1. Quem é o controlador</h2>
+<p>{% if e.empresa_razao_social %}{{ e.empresa_razao_social }}{% if e.empresa_cnpj %}, CNPJ {{ e.empresa_cnpj }}{% endif %}{% if e.empresa_endereco %}, {{ e.empresa_endereco }}{% endif %}{% else %}A empresa responsável pela loja Marketplace B2B{% endif %} (“Marketplace B2B”, “nós”) é a controladora dos dados tratados nesta loja.
+{% if e.empresa_email_privacidade %}Para qualquer assunto sobre seus dados, escreva para <a class="link" href="mailto:{{ e.empresa_email_privacidade }}">{{ e.empresa_email_privacidade }}</a>.{% endif %}</p>
+
+<h2>2. Quais dados coletamos</h2>
+<ul>
+<li><b>Cadastro:</b> nome, e-mail, senha (guardada apenas de forma criptografada, que nem nós conseguimos ler), CPF ou CNPJ, razão social, inscrição estadual, telefone celular e endereço.</li>
+<li><b>Empresas:</b> dados públicos do CNPJ na Receita Federal (situação cadastral, atividade, data de abertura e endereço).</li>
+<li><b>Pedidos:</b> produtos, quantidades, valores, forma de pagamento, endereço de entrega e dados de contato informados na compra. Em pagamentos por Pix, o nome e o documento (parcialmente ocultos) de quem pagou, informados pela instituição de pagamento.</li>
+<li><b>Avaliações:</b> a nota e o comentário que você escreve sobre um produto. Na loja, aparecem só o seu primeiro nome e a inicial do sobrenome.</li>
+<li><b>Carrinho:</b> os produtos e as quantidades que você deixa no carrinho, guardados na sua conta para continuar a compra em outro aparelho.</li>
+<li><b>Atendimento virtual:</b> as mensagens que você escreve no chat do site, usadas só para responder na hora. O Marketplace B2B não guarda a conversa; ela fica apenas no seu navegador até você fechar a aba.</li>
+<li><b>Dados técnicos:</b> endereço IP, usado só para segurança (limitar tentativas de login e de envio de mensagens) e mantido por pouco tempo.</li>
+</ul>
+<p>Não coletamos dados sensíveis e não pedimos dados de cartão por esta loja.</p>
+
+<h2>3. Para que usamos e com qual base legal</h2>
+<ul>
+<li><b>Criar e manter sua conta, processar pedidos, orçamentos, pagamentos e entregas</b> — execução de contrato (art. 7º, V).</li>
+<li><b>Emitir nota fiscal e guardar registros de vendas</b> — cumprimento de obrigação legal (art. 7º, II).</li>
+<li><b>Confirmar e-mail e celular, conferir o CNPJ e quem pagou o Pix, prevenir fraudes e proteger a loja</b> — legítimo interesse e prevenção à fraude (art. 7º, IX, e art. 11, II, “g”, no que couber).</li>
+<li><b>Enviar avisos sobre sua conta e seus pedidos</b> (confirmações, pagamento, respostas de orçamento) — execução de contrato. Não enviamos propaganda sem o seu consentimento.</li>
+<li><b>Lembrar, por e-mail, dos produtos deixados no carrinho</b> (no máximo um lembrete por carrinho; dá para desligar pelo link do próprio e-mail ou em Conta › Privacidade) — legítimo interesse (art. 7º, IX).</li>
+</ul>
+
+<h2>4. Com quem compartilhamos</h2>
+<p>Não vendemos seus dados. Eles são compartilhados apenas com empresas que prestam serviços para a loja (operadores), na medida necessária para cada serviço:</p>
+<ul>{% for nome, para in operadores %}<li><b>{{ nome }}</b>: {{ para }}.</li>{% endfor %}</ul>
+<p>Também podemos compartilhar dados com transportadoras (para a entrega), com o contador (para obrigações fiscais) e com autoridades, quando a lei exigir. Alguns desses serviços podem armazenar dados fora do Brasil, com as garantias previstas na LGPD.</p>
+
+<h2>5. Por quanto tempo guardamos</h2>
+<ul>
+<li><b>Dados da conta:</b> enquanto a conta existir. Ao excluir a conta, ela é apagada.</li>
+<li><b>Pedidos e dados de venda:</b> pelo prazo exigido pela legislação fiscal e para defesa em eventuais processos (em geral, 5 anos), mesmo após a exclusão da conta.</li>
+<li><b>Registros de segurança</b> (tentativas de login e de envio): poucas horas ou dias.</li>
+</ul>
+
+<h2>6. Seus direitos</h2>
+<p>Pela LGPD (art. 18), você pode: confirmar se tratamos seus dados e acessá-los; corrigir dados incompletos ou errados; pedir a portabilidade; pedir a eliminação; saber com quem compartilhamos; e revogar consentimentos.</p>
+<ul>
+<li><b>Ver e corrigir:</b> em <a class="link" href="{{ url_for('account.dados') }}">Minha conta › Meus dados</a>.</li>
+<li><b>Baixar todos os seus dados</b> e <b>excluir sua conta:</b> em <a class="link" href="{{ url_for('account.privacidade') }}">Minha conta › Privacidade</a>.</li>
+<li>Para qualquer outro pedido{% if e.empresa_email_privacidade %}, escreva para <a class="link" href="mailto:{{ e.empresa_email_privacidade }}">{{ e.empresa_email_privacidade }}</a>{% else %}, fale com o Marketplace B2B{% endif %}. Respondemos em até 15 dias.</li>
+</ul>
+<p>Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).</p>
+
+<h2 id="cookies">7. Cookies</h2>
+{% if ga_loja %}<p>Usamos um cookie essencial, que mantém você conectado e guarda o carrinho, e um cookie que guarda a sua escolha no aviso de cookies.</p>
+<p>Se você aceitar, as páginas da loja (vitrine, produtos, carrinho, finalização e página do pedido) também usam os cookies do <b>Google Analytics</b>, para medirmos as visitas e as vendas de forma estatística: de onde os visitantes vêm, quais páginas veem e quais compras são concluídas (número do pedido, valor e produtos, sem nome, e-mail ou documento). A base legal é o seu consentimento (art. 7º, I), e você pode mudar a escolha quando quiser pelo link "Cookies" no rodapé. A sua conta e as páginas com dados pessoais não são medidas. Não usamos cookies de publicidade.</p>
+{% else %}<p>Usamos apenas um cookie essencial, que mantém você conectado e guarda o carrinho. Não usamos cookies de publicidade nem de rastreamento.</p>{% endif %}
+
+<h2>8. Segurança</h2>
+<p>O site usa conexão criptografada (HTTPS), senhas guardadas com criptografia, proteção contra formulários falsificados e limites de tentativas. Nenhum sistema é totalmente imune: se houver um incidente que possa trazer risco a você, avisaremos você e a ANPD.</p>
+
+<h2>9. Alterações</h2>
+<p>Podemos atualizar esta política. A data no topo mostra a última versão; mudanças importantes serão avisadas por e-mail ou no site.</p>
+<p><a class="link" href="{{ url_for('shop.termos') }}">Leia também os Termos de Uso</a>.</p>
+</main>
+{% endblock %}

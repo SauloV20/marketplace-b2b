@@ -1,0 +1,32 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<a class="link" href="{{ url_for('admin.orders', status='orcamento') }}">← Orçamentos</a>
+<h1>Orçamento #{{ o.id }}</h1>
+<div class="box">
+{% if o.razao_social %}<p><b>{{ o.razao_social }}</b> · CNPJ {{ fmt_doc(o.documento) }}{% if o.inscricao_estadual %} · IE {{ o.inscricao_estadual }}{% endif %}</p>
+{% elif o.documento %}<p>CPF {{ fmt_doc(o.documento) }}</p>{% endif %}
+<p>{{ o.customer_name }} · {{ o.customer_email }} · {{ o.customer_phone }}</p><p class="mute">Entrega: {{ o.address }}</p>
+{% if cliente %}<p class="mute">Cliente {{ 'empresa aprovada' if cliente.empresa_aprovada else ('empresa em análise' if cliente.tipo == 'pj' else 'pessoa física') }}{% if cliente.prazos %} · prazos liberados: {{ cliente.prazos }}{% endif %} · <a class="link" href="{{ url_for('admin.cliente', uid=cliente.id) }}">ver cadastro</a></p>{% endif %}
+</div>
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<div class="wide" style="overflow-x:auto"><table>
+<tr><th>Produto</th><th>Qtd</th><th>Estoque</th><th>Preço unitário (R$)</th></tr>
+{% for i in o.items %}<tr><td>{{ i.product.name }}{% if i.fracionado %} <span class="tag">fracionado</span>{% endif %}<br><small class="mute">tabela {{ i.product.price|brl }}</small></td><td>{{ i.quantity }}</td>
+<td>{% if i.product.stock < i.quantity %}<span class="tag off">só {{ i.product.stock }}</span>{% else %}{{ i.product.stock }}{% endif %}</td>
+<td><input name="preco_{{ i.id }}" inputmode="decimal" value="{{ i.unit_price|duas_casas }}" required aria-label="Preço de {{ i.product.name }}"></td></tr>{% endfor %}
+</table>{% if o.cupom %}<p>Cupom <b>{{ o.cupom }}</b>: -{{ o.desconto|brl }} <small class="mute">(desconto em % é recalculado sobre os novos preços)</small></p>{% endif %}
+<p>Total atual: <b>{{ o.total|brl }}</b> <small class="mute">(recalculado ao aprovar)</small></p></div>
+<label>Frete (R$){% if o.frete_combinar %} <small class="mute">sem tabela para o CEP {{ o.cep }}: informe</small>{% endif %}<input name="frete" inputmode="decimal" value="{{ o.frete|duas_casas }}" required></label>
+<label>Prazo de entrega<input name="frete_prazo" value="{{ o.frete_prazo or '' }}" maxlength="60" placeholder="3 a 5 dias úteis"></label>
+<label>Forma de pagamento<select name="pagamento" required>{% for k, n in metodos.items() %}<option value="{{ k }}" {{ 'selected' if k == 'faturado' and cliente and cliente.prazos }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Prazo (só para boleto faturado)<input name="prazo" placeholder="30/60/90" value="{{ (cliente.prazos or '').split(';')[0].strip() if cliente else '' }}"></label>
+{% if comprador %}{% set na_equipe = comprador.empresa_id == o.user_id %}<p class="msg wide">Pedido por <b>{{ comprador.name }}</b>, comprador da equipe da empresa{% if not na_equipe %} (já saiu da equipe){% elif comprador.limite_aprovacao is not none %}, com limite de {{ comprador.limite_aprovacao|brl }}{% endif %}.
+{% if na_equipe and comprador.limite_aprovacao is not none %}Se o total aprovado passar do limite, o orçamento vai primeiro para a empresa aprovar{% else %}Ao aprovar, o orçamento vai primeiro para a empresa aprovar{% endif %}; o estoque só é separado depois disso.</p>{% endif %}
+<div class="wide" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" name="acao" value="aprovar">{{ 'Aprovar orçamento' if comprador else 'Aprovar e baixar estoque' }}</button>
+<button class="btn ghost" name="acao" value="recusar" formnovalidate data-confirmar="Recusar este orçamento?">Recusar orçamento</button></div>
+</form>
+{% include "_historico.html" %}
+{% if acesso_total %}<form method="post" action="{{ url_for('admin.orders_excluir') }}" data-confirmar="Excluir de vez o orçamento #{{ o.id }}? Não dá para desfazer.">
+<input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="oid" value="{{ o.id }}"><input type="hidden" name="filtro" value="orcamento">
+<button class="link">Excluir este orçamento (teste ou lançado por engano)</button></form>{% endif %}
+{% endblock %}

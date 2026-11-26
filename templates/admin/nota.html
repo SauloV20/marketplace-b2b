@@ -1,0 +1,37 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<p><a class="link" href="{{ url_for('admin.notas_lista') }}">← Notas fiscais</a>{% if n.order_id %} · <a class="link" href="{{ url_for('admin.pedido', oid=n.order_id) }}">Pedido #{{ n.order_id }}</a>{% endif %}</p>
+<h1>NF-e {{ n.numero }} <small class="mute">série {{ n.serie }}</small> <span class="tag {{ '' if n.status == 'autorizada' else 'off' }}">{{ situacoes.get(n.status, n.status) }}</span></h1>
+{% if n.ambiente == 2 %}<div class="msg">Nota de <b>homologação</b> (teste): não tem valor fiscal e não vai para o cliente.</div>{% endif %}
+<section class="box">
+<p>Destinatário: <b>{{ n.destinatario }}</b> · valor {{ n.valor|brl }}</p>
+{% if n.chave %}<p>Chave de acesso: <code>{{ n.chave }}</code></p>{% endif %}
+{% if n.protocolo %}<p>Protocolo: {{ n.protocolo }}{% if n.autorizada_em %} · autorizada em {{ n.autorizada_em|hora_br }}{% endif %}</p>{% endif %}
+{% if n.cstat %}<p class="mute">Última resposta da SEFAZ: {{ n.cstat }} · {{ n.motivo }}</p>{% endif %}
+<p class="mute pequeno">Emitida por {{ n.autor or '—' }} em {{ n.criado_em|hora_br }}{% if n.cancelada_em %} · cancelada em {{ n.cancelada_em|hora_br }}{% endif %}.</p>
+<div class="acts-row">
+{% if n.status in ('autorizada', 'cancelada') %}<a class="btn" href="{{ url_for('admin.nota_danfe', nid=n.id) }}" target="_blank" rel="noopener">DANFE (PDF)</a>{% endif %}
+{% if n.xml %}<a class="btn ghost" href="{{ url_for('admin.nota_xml', nid=n.id) }}">XML</a>{% endif %}
+{% if n.chave %}<form method="post" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn ghost" name="acao" value="consultar">Consultar na SEFAZ</button>
+{% if n.status == 'autorizada' and n.ambiente == 1 and n.order_id %}<button class="btn ghost" name="acao" value="email">Enviar por e-mail ao cliente</button>{% endif %}</form>{% endif %}
+{% if n.status in ('rejeitada', 'erro', 'processando') and n.order_id %}<a class="btn ghost" href="{{ url_for('admin.pedido_nfe', oid=n.order_id) }}">Corrigir e reenviar</a>{% endif %}
+</div></section>
+
+{% if n.status == 'autorizada' %}
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="correcao">
+<h2>Carta de correção</h2>
+<p class="wide mute pequeno">Corrige dados que não mudam o imposto, o valor, a quantidade, o destinatário ou a data (ex.: endereço de entrega, transportadora, uma descrição). A mais recente substitui as anteriores.</p>
+<label class="wide">Correção (15 a 1.000 caracteres)<textarea name="texto" rows="3" minlength="15" maxlength="1000" required></textarea></label>
+<div><button class="btn ghost">Enviar carta de correção</button></div></form>
+
+<form class="f box perigo" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="cancelar">
+<h2>Cancelar nota</h2>
+<p class="wide mute pequeno">Só dentro do prazo do estado (em geral 24 horas depois da autorização) e se a mercadoria não saiu. Cancelar a nota não cancela o pedido.</p>
+<label class="wide">Motivo (15 a 255 caracteres)<input name="justificativa" minlength="15" maxlength="255" required></label>
+<div><button class="btn ghost perigo" data-confirmar="Cancelar esta NF-e na SEFAZ? Não dá para desfazer.">Cancelar NF-e</button></div></form>
+{% endif %}
+
+{% if n.eventos %}<section class="box"><h2>Eventos</h2><table><tr><th>Quando</th><th>Evento</th><th>Texto</th><th>Resultado</th><th></th></tr>
+{% for ev in n.eventos %}<tr><td>{{ ev.quando|hora_br }}</td><td>{{ {'cancelamento': 'Cancelamento', 'correcao': 'Carta de correção ' ~ ev.sequencia}.get(ev.tipo, ev.tipo) }}</td><td>{{ ev.texto }}</td>
+<td>{{ 'Registrado · ' ~ ev.protocolo if ev.ok else 'Recusado · ' ~ ev.cstat ~ ' ' ~ ev.motivo }}</td><td>{% if ev.ok %}<a class="link" href="{{ url_for('admin.nota_evento_xml', eid=ev.id) }}">XML</a>{% endif %}</td></tr>{% endfor %}</table></section>{% endif %}
+{% endblock %}

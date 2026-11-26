@@ -1,0 +1,4 @@
+{% for l in lines %}<div class="sum-row"><span>{{ l.qty }}× {{ l.p.name }} <small class="mute">({% if l.frac %}{% if l.fechadas %}{{ l.fechadas }} a {{ l.unit|brl }} + {% endif %}{{ l.frac }} fracionada(s) a {{ l.unit_frac|brl }}{% else %}{{ l.unit|brl }}/un{% endif %})</small></span><b>{{ l.sub|brl }}</b></div>{% endfor %}
+<div class="sum-row"><span>Subtotal</span><b>{{ total|brl }}</b></div>
+{% if cupom %}<div class="sum-row"><span>Cupom {{ cupom.codigo }}</span><b class="gratis">-{{ desconto|brl }}</b></div>{% endif %}
+{% if uf_precos %}<p class="mute pequeno">Preços para entrega em {{ uf_precos }}.</p>{% endif %}

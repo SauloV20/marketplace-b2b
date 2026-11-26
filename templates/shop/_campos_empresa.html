@@ -1,0 +1,8 @@
+<fieldset class="tipo-conta"><legend>Tipo de conta</legend>
+<label class="opt"><input type="radio" name="tipo" value="pj" {{ 'checked' if f.get('tipo', 'pj') == 'pj' }} required><span><b>Empresa (CNPJ)</b><small>Preços de atacado; depois da análise, desconto e boleto faturado</small></span></label>
+<label class="opt"><input type="radio" name="tipo" value="pf" {{ 'checked' if f.get('tipo') == 'pf' }}><span><b>Pessoa física (CPF)</b><small>Compra com os preços de tabela</small></span></label></fieldset>
+<label>CPF ou CNPJ<input name="documento" value="{{ f.get('documento', '') }}" required maxlength="18" inputmode="numeric" placeholder="Só os números ou com pontuação" data-cnpj-url="{{ url_for('account.consultar_cnpj_cadastro') }}"></label>
+<p class="cnpj-msg mute" role="status" aria-live="polite" hidden></p>
+<div class="so-pj stack">
+<label>Razão social<input name="razao_social" value="{{ f.get('razao_social', '') }}" maxlength="160" autocomplete="organization"></label>
+<label>Inscrição estadual (opcional)<input name="inscricao_estadual" value="{{ f.get('inscricao_estadual', '') }}" maxlength="30"></label></div>

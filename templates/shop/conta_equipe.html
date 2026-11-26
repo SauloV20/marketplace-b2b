@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Equipe da empresa · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Equipe da {{ cliente.razao_social or 'empresa' }}</h1>
+{% include "shop/_conta_nav.html" %}
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<div class="box"><p>Convide quem compra pela empresa. Cada pessoa entra com o próprio e-mail e senha e compra na conta da empresa: mesmos preços, condições, endereços, listas e pedidos.</p>
+<ul class="lista"><li><b>Aprovador</b>: faz pedidos direto e aprova os pedidos dos compradores.</li>
+<li><b>Comprador</b>: o pedido fica <b>aguardando aprovação</b> até você ou um aprovador aprovar (o estoque não fica preso enquanto isso). Com um limite, pedidos até esse valor seguem direto. Orçamento: o comprador pede sem precisar de aprovação; depois que o Marketplace B2B responde com os preços, se o total passar do limite, ele volta para você aprovar antes de virar pedido.</li>
+<li>Só você (titular da conta) vê esta página e muda os dados da empresa.</li></ul></div>
+
+{% if link %}<div class="box"><p><b>Link do convite</b> (vale 7 dias; envie para a pessoa):</p>
+<p><input value="{{ link }}" readonly data-selecionar style="width:100%"></p></div>{% endif %}
+
+{% for m in membros %}
+<form class="f box regra" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="uid" value="{{ m.id }}">
+<h2>{{ m.name }} <small class="mute">{{ m.email }} · {{ nome_papel(m) }}{% if not m.email_verified %} · <span class="tag off">convite pendente</span>{% endif %}</small></h2>
+<label>Papel<select name="papel">{% for k, n in papeis.items() %}<option value="{{ k }}" {{ 'selected' if m.papel == k }}>{{ n }}</option>{% endfor %}</select></label>
+<label>Comprador: aprovação só acima de (R$)<input name="limite" inputmode="decimal" value="{{ m.limite_aprovacao|duas_casas if m.limite_aprovacao is not none else '' }}" placeholder="vazio = todos os pedidos"></label>
+<div class="wide acts-row"><button class="btn" name="acao" value="salvar">Salvar</button>
+{% if not m.email_verified %}<button class="btn ghost" name="acao" value="reenviar" formnovalidate>Reenviar convite</button>{% endif %}
+<button class="btn ghost perigo" name="acao" value="remover" formnovalidate data-confirmar="Tirar esta pessoa da equipe? Os pedidos que ela fez continuam na conta.">Remover</button></div></form>
+{% else %}<p class="empty">Ninguém na equipe ainda.</p>{% endfor %}
+
+<form class="f box" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="convidar">
+<h2 class="wide">Convidar pessoa</h2>
+<label>Nome<input name="nome" required maxlength="120"></label>
+<label>E-mail de trabalho<input name="email" type="email" required maxlength="120"></label>
+<label>Papel<select name="papel">{% for k, n in papeis.items() %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></label>
+<label>Comprador: aprovação só acima de (R$)<input name="limite" inputmode="decimal" placeholder="vazio = todos os pedidos"></label>
+<p class="wide mute">A pessoa recebe um e-mail para criar a senha (vale 7 dias). O e-mail não pode ter cadastro no Marketplace B2B.</p>
+<div><button class="btn">Enviar convite</button></div></form>
+</main>
+{% endblock %}

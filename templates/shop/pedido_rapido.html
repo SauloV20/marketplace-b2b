@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Pedido rápido · Marketplace B2B{% endblock %}
+{% block body %}
+{% include "shop/_header.html" %}
+<main class="wrap page">
+<h1>Pedido rápido por código</h1>
+{% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
+<div class="cart-layout">
+<form class="box stack" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+<label>Uma linha por produto: código (ou nome exato) e quantidade
+<textarea name="lista" rows="10" required placeholder="DISCO-7 50&#10;LUVA-RASPA 120&#10;FRESA-10 4">{{ texto }}</textarea></label>
+<p class="mute pequeno">Pode colar direto do Excel (duas colunas: código e quantidade). A quantidade é ajustada sozinha ao mínimo e ao múltiplo de cada produto. Até 200 linhas.</p>
+<div class="acts-row"><button class="btn ghost" name="acao" value="conferir">Conferir</button>
+<button class="btn destaque" name="acao" value="adicionar">Adicionar tudo ao carrinho</button></div>
+</form>
+<aside class="box summary"><h3>Como funciona</h3>
+<p class="mute">Use os códigos que aparecem na página de cada produto (ex.: Cód. DISCO-7). Ideal para reposição: guarde sua lista e cole aqui sempre que precisar.</p>
+<a class="link" href="{{ url_for('account.pedidos') }}">Ou repita um pedido anterior</a></aside>
+</div>
+{% if conferido and linhas %}
+<section class="box" style="margin-top:16px;overflow-x:auto"><h3>Conferência</h3>
+<table><tr><th>Linha</th><th>Produto</th><th>Qtd</th><th>Preço/un</th><th>Subtotal</th><th></th></tr>
+{% for l in linhas %}<tr class="{{ '' if l.ok else 'linha-ruim' }}"><td><small>{{ l.entrada }}</small></td>
+<td>{% if l.produto %}<a class="link" href="{{ link_produto(l.produto) }}">{{ l.produto.name }}</a>{% else %}—{% endif %}</td>
+<td>{{ l.qtd if l.ok else '—' }}</td><td>{{ l.unit|brl if l.ok else '—' }}</td><td>{{ l.sub|brl if l.ok else '—' }}</td>
+<td><small class="{{ 'mute' if l.ok else 'erro-txt' }}">{{ l.aviso }}</small></td></tr>{% endfor %}
+<tr><td colspan="4"><b>Total dos produtos encontrados</b></td><td colspan="2"><b>{{ total|brl }}</b></td></tr></table>
+</section>{% endif %}
+</main>
+{% endblock %}
